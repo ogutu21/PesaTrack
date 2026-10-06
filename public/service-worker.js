@@ -1,8 +1,8 @@
-// App-shell cache so PesaTrack opens offline. Bump VERSION to force an update.
-const VERSION = "pesatrack-v2";
+// Offline-capable app shell. Bump VERSION when you add files to SHELL.
+const VERSION = "pesatrack-v3";
 const SHELL = [
     "/", "/index.html", "/auth.html", "/style.css", "/script.js",
-    "/firestore.js", "/firebase-config.js", "/manifest.json",
+    "/firestore.js", "/firebase-config.js", "/mpesa.js", "/charts.js", "/manifest.json",
     "/icons/icon-192.png", "/icons/icon-512.png"
 ];
 
@@ -24,16 +24,25 @@ self.addEventListener("fetch", e => {
     const url = new URL(req.url);
     const sameOrigin = url.origin === self.location.origin;
     const firebaseSdk = url.hostname === "www.gstatic.com" && url.pathname.startsWith("/firebasejs/");
-    if (!sameOrigin && !firebaseSdk) return; // let Firestore/Auth API calls go straight through
+    if (!sameOrigin && !firebaseSdk) return; // Firestore/Auth API calls go straight through
 
-    // Stale-while-revalidate: instant from cache, refreshed in the background.
-    e.respondWith(
-        caches.open(VERSION).then(async cache => {
-            const cached = await cache.match(req);
-            const network = fetch(req)
-                .then(res => { if (res.ok) cache.put(req, res.clone()); return res; })
-                .catch(() => cached);
-            return cached || network;
-        })
-    );
+    if (sameOrigin) {
+        // Network-first: new deploys show up immediately; cache is the offline fallback.
+        e.respondWith(
+            fetch(req)
+                .then(res => {
+                    if (res.ok) { const copy = res.clone(); caches.open(VERSION).then(c => c.put(req, copy)); }
+                    return res;
+                })
+                .catch(() => caches.match(req).then(hit => hit || caches.match("/index.html")))
+        );
+    } else {
+        // Versioned SDK files never change: cache-first.
+        e.respondWith(
+            caches.match(req).then(hit => hit || fetch(req).then(res => {
+                if (res.ok) { const copy = res.clone(); caches.open(VERSION).then(c => c.put(req, copy)); }
+                return res;
+            }))
+        );
+    }
 });

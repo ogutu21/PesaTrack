@@ -21,6 +21,17 @@ service cloud.firestore {
         && request.resource.data.date is string;
     }
 
+    // Monthly budgets: a single document per user.
+    match /users/{userId}/settings/{docId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow create, update: if request.auth != null
+        && request.auth.uid == userId
+        && docId == 'budgets'
+        && request.resource.data.keys().hasOnly(['limits', 'updatedAt'])
+        && request.resource.data.limits is map;
+      allow delete: if request.auth != null && request.auth.uid == userId;
+    }
+
     // Everything else is denied.
     match /{document=**} {
       allow read, write: if false;

@@ -4,6 +4,14 @@
 - `public/`  – the web app (index.html, auth.html, script.js, firestore.js, firebase-config.js, PWA files)
 - `firestore.rules`, `firestore.indexes.json`, `firebase.json`, `.firebaserc` – Firebase config
 
+## Features
+- Cloud sync (Firestore) with offline support
+- Month-by-month view with comparison to the previous month
+- Monthly budgets per category, with warnings at 80% and 100%
+- Charts: spending by category, 6-month income vs expenses
+- CSV export (Excel-friendly)
+- M-Pesa SMS import: paste messages, review, import (re-pasting never creates duplicates)
+
 ## One-time setup
 1. `npm install -g firebase-tools`
 2. `firebase login`

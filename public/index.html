@@ -97,6 +97,14 @@
         </header>
 
 
+        <!-- MONTH SELECTOR -->
+        <div id="monthBar" class="month-bar">
+            <button id="prevMonth" class="month-btn" aria-label="Previous month">‹</button>
+            <span id="monthLabel" class="month-label"></span>
+            <button id="nextMonth" class="month-btn" aria-label="Next month">›</button>
+            <button id="allTimeButton" class="secondary-button month-all">All time</button>
+        </div>
+
         <!-- ================= DASHBOARD ================= -->
 
         <section id="dashboard" class="page-section active">
@@ -107,8 +115,13 @@
                     <h2>Financial Overview</h2>
                     <p>Here's how your money is doing.</p>
                 </div>
+                <div class="heading-actions">
+                    <button type="button" class="secondary-button" data-open-mpesa>📲 Import M-Pesa</button>
+                    <button type="button" class="secondary-button" data-export-csv>⬇ Export CSV</button>
+                </div>
 
             </div>
+            <div id="budgetBanner" class="budget-banner" hidden></div>
 
 
             <!-- SUMMARY -->
@@ -351,6 +364,10 @@
                     <h2>Transactions</h2>
                     <p>View and manage your financial activity.</p>
                 </div>
+                <div class="heading-actions">
+                    <button type="button" class="secondary-button" data-open-mpesa>📲 Import M-Pesa</button>
+                    <button type="button" class="secondary-button" data-export-csv>⬇ Export CSV</button>
+                </div>
 
             </div>
 
@@ -553,6 +570,46 @@
 
             </div>
 
+        
+            <div class="reports-grid reports-extra">
+                <div class="card">
+                    <div class="card-header">
+                        <div>
+                            <h3>Budgets</h3>
+                            <p id="budgetPeriod">This month</p>
+                        </div>
+                        <button id="editBudgetsButton" class="secondary-button" type="button">Edit budgets</button>
+                    </div>
+                    <div id="budgetList" class="budget-list"></div>
+                </div>
+                <div class="card">
+                    <div class="card-header">
+                        <div>
+                            <h3>This period vs last month</h3>
+                            <p>How you compare with the month before.</p>
+                        </div>
+                    </div>
+                    <div id="comparisonCard" class="comparison"></div>
+                </div>
+                <div class="card">
+                    <div class="card-header">
+                        <div>
+                            <h3>Where your money went</h3>
+                            <p>Expenses by category.</p>
+                        </div>
+                    </div>
+                    <div id="donutChart"></div>
+                </div>
+                <div class="card">
+                    <div class="card-header">
+                        <div>
+                            <h3>Last 6 months</h3>
+                            <p>Income versus expenses.</p>
+                        </div>
+                    </div>
+                    <div id="trendChart"></div>
+                </div>
+            </div>
         </section>
 
 

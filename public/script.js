@@ -5,12 +5,18 @@ import { auth } from "./firebase-config.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
 import {
     subscribeTransactions, saveTransaction, deleteTransaction,
-    clearTransactions, importTransactions
+    clearTransactions, importTransactions, subscribeBudgets, saveBudgets
 } from "./firestore.js";
+import { parseMpesa } from "./mpesa.js";
+import { donutHTML, trendHTML } from "./charts.js";
 
 let transactions = [];
 let currentUser = null;
 let unsubscribe = null;
+let unsubscribeBudgets = null;
+let budgets = {};                       // { Food: 5000, ... }
+let selectedMonth = currentMonthKey();  // "YYYY-MM" or "all"
+let monthDecided = false;               // true once the user (or first load) picked a view
 let deferredInstallPrompt = null;
 
 const $ = id => document.getElementById(id);
@@ -100,6 +106,7 @@ function openSection(name) {
     [...navItems, ...mobileNavItems].forEach(i => i.classList.toggle("active", i.dataset.section === name));
     $("pageTitle").textContent = ({ dashboard: "Dashboard", transactions: "Transactions",
         reports: "Reports", settings: "Settings" })[name] || "PesaTrack";
+    $("monthBar").hidden = name === "settings";
     if (name === "settings") updateUserInformation();
     if (name === "reports") renderReports();
     sidebar.classList.remove("open");
@@ -134,20 +141,23 @@ $("transactionForm").addEventListener("submit", event => {
         createdAt: new Date().toISOString()
     };
 
+    const before = tx.type === "expense" ? (spentByCategory(monthKey(tx.date))[tx.category] || 0) : 0;
     saveTransaction(currentUser.uid, tx).catch(reportWriteError); // UI updates instantly via snapshot
     $("transactionForm").reset();
     dateInput.value = localToday();
     toast("Transaction added", "success");
+    if (tx.type === "expense") budgetCheck(tx.category, before, before + tx.amount);
 });
 
 // ---------- totals + dashboard ----------
-function calculateTotals() {
+function totalsFor(list) {
     let income = 0, expenses = 0;
-    transactions.forEach(t => (t.type === "income" ? (income += Number(t.amount)) : (expenses += Number(t.amount))));
+    list.forEach(t => (t.type === "income" ? (income += Number(t.amount)) : (expenses += Number(t.amount))));
     const balance = income - expenses;
     const savingsRate = income > 0 ? (balance / income) * 100 : 0; // can be negative (overspending)
     return { income, expenses, balance, savingsRate };
 }
+const calculateTotals = () => totalsFor(visible());
 
 function savingsText(rate) {
     return `${rate.toFixed(1)}%`;
@@ -194,7 +204,7 @@ function byNewest(a, b) {
 }
 
 function renderRecentTransactions() {
-    const recent = [...transactions].sort(byNewest).slice(0, 5);
+    const recent = [...visible()].sort(byNewest).slice(0, 5);
     $("recentTransactions").innerHTML = recent.length
         ? recent.map(transactionHTML).join("")
         : emptyState("💳", "No transactions yet", "Add your first transaction above.");
@@ -206,7 +216,7 @@ function renderTransactions() {
     const category = $("categoryFilter").value;
     const sort = $("sortFilter").value;
 
-    let list = transactions.filter(t =>
+    let list = visible().filter(t =>
         (!search || t.description.toLowerCase().includes(search) || t.category.toLowerCase().includes(search)) &&
         (type === "all" || t.type === type) &&
         (category === "all" || t.category === category));
@@ -304,7 +314,7 @@ function renderReports() {
     $("reportSavings").textContent = savingsText(t.savingsRate);
 
     const categories = {};
-    transactions.filter(x => x.type === "expense").forEach(x => {
+    visible().filter(x => x.type === "expense").forEach(x => {
         categories[x.category] = (categories[x.category] || 0) + Number(x.amount);
     });
     const entries = Object.entries(categories).sort((a, b) => b[1] - a[1]);
@@ -340,6 +350,315 @@ function toggleTheme() {
 $("themeButton").addEventListener("click", toggleTheme);
 $("settingsThemeButton").addEventListener("click", toggleTheme);
 
+
+// =====================================================
+// MONTH SCOPE
+// =====================================================
+function monthKey(date) { return (date || "").slice(0, 7); }
+function currentMonthKey() { return localToday().slice(0, 7); }
+function shiftMonth(key, delta) {
+    const [y, m] = key.split("-").map(Number);
+    const d = new Date(y, m - 1 + delta, 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+function monthLabel(key) {
+    const [y, m] = key.split("-").map(Number);
+    return new Date(y, m - 1, 1).toLocaleDateString("en-KE", { month: "long", year: "numeric" });
+}
+const inMonth = key => transactions.filter(t => monthKey(t.date) === key);
+function visible() { return selectedMonth === "all" ? transactions : inMonth(selectedMonth); }
+
+function renderMonthBar() {
+    const all = selectedMonth === "all";
+    $("monthLabel").textContent = all ? "All time" : monthLabel(selectedMonth);
+    $("prevMonth").disabled = all;
+    $("nextMonth").disabled = all || selectedMonth >= currentMonthKey();
+    $("allTimeButton").textContent = all ? "Back to month view" : "All time";
+    $("allTimeButton").classList.toggle("active", all);
+}
+function setMonth(value) { monthDecided = true; selectedMonth = value; renderAll(); }
+$("prevMonth").addEventListener("click", () => setMonth(shiftMonth(selectedMonth, -1)));
+$("nextMonth").addEventListener("click", () => setMonth(shiftMonth(selectedMonth, 1)));
+$("allTimeButton").addEventListener("click", () => setMonth(selectedMonth === "all" ? currentMonthKey() : "all"));
+
+// =====================================================
+// BUDGETS
+// =====================================================
+const INCOME_ONLY = ["Salary", "Business"];
+const expenseCategories = () => [...$("category").options].map(o => o.value).filter(v => !INCOME_ONLY.includes(v));
+const budgetMonth = () => (selectedMonth === "all" ? currentMonthKey() : selectedMonth);
+
+function spentByCategory(key) {
+    const out = {};
+    inMonth(key).filter(t => t.type === "expense").forEach(t => {
+        out[t.category] = (out[t.category] || 0) + Number(t.amount);
+    });
+    return out;
+}
+function budgetStatus(spent, limit) {
+    const pct = limit > 0 ? (spent / limit) * 100 : 0;
+    return { pct, level: pct >= 100 ? "over" : pct >= 80 ? "warn" : "ok" };
+}
+const activeBudgets = () => Object.entries(budgets).filter(([, limit]) => limit > 0);
+
+function budgetCheck(category, before, after) {
+    const limit = budgets[category];
+    if (!(limit > 0)) return;
+    if (before < limit && after >= limit) toast(`${category}: you're over your ${formatCurrency(limit)} budget`, "error");
+    else if (before < limit * 0.8 && after >= limit * 0.8) toast(`${category}: 80% of your budget used`);
+}
+
+function renderBudgets() {
+    const key = budgetMonth();
+    const spent = spentByCategory(key);
+    $("budgetPeriod").textContent = monthLabel(key);
+    const rows = activeBudgets();
+    $("budgetList").innerHTML = rows.length ? rows.map(([cat, limit]) => {
+        const s = spent[cat] || 0;
+        const { pct, level } = budgetStatus(s, limit);
+        const left = limit - s;
+        return `
+            <div class="budget-row ${level}">
+                <div class="budget-top">
+                    <span>${getCategoryIcon(cat)} ${escapeHTML(cat)}</span>
+                    <span>${formatCurrency(s)} of ${formatCurrency(limit)}</span>
+                </div>
+                <div class="progress"><div class="progress-bar" style="width:${Math.min(pct, 100).toFixed(1)}%"></div></div>
+                <div class="budget-note">${left >= 0 ? `${formatCurrency(left)} left` : `${formatCurrency(-left)} over budget`} · ${pct.toFixed(0)}%</div>
+            </div>`;
+    }).join("") : emptyState("🎯", "No budgets yet", "Tap “Edit budgets” to set a monthly limit for a category.");
+}
+
+function renderBanner() {
+    const spent = spentByCategory(budgetMonth());
+    const alerts = activeBudgets()
+        .map(([cat, limit]) => ({ cat, ...budgetStatus(spent[cat] || 0, limit) }))
+        .filter(a => a.level !== "ok");
+    const el = $("budgetBanner");
+    el.hidden = !alerts.length;
+    el.innerHTML = alerts.map(a => a.level === "over"
+        ? `<span class="over">🚨 ${escapeHTML(a.cat)}: over budget (${a.pct.toFixed(0)}%)</span>`
+        : `<span class="warn">⚠️ ${escapeHTML(a.cat)}: ${a.pct.toFixed(0)}% of budget used</span>`).join("");
+}
+
+function openOverlay(html, wide = false) {
+    const overlay = document.createElement("div");
+    overlay.className = "modal-overlay";
+    overlay.innerHTML = `<div class="modal${wide ? " modal-wide" : ""}" role="dialog" aria-modal="true">${html}</div>`;
+    const close = () => overlay.remove();
+    overlay.addEventListener("click", e => {
+        if (e.target === overlay || e.target.closest("[data-close]")) close();
+    });
+    document.body.appendChild(overlay);
+    return { overlay, close };
+}
+
+function openBudgetEditor() {
+    const cats = expenseCategories();
+    const { overlay, close } = openOverlay(`
+        <h3>Monthly budgets</h3>
+        <p class="confirm-text">Set a monthly limit per category. Leave blank for no limit.</p>
+        <form id="budgetForm">
+            <div class="budget-form">
+                ${cats.map((c, i) => `
+                    <label><span>${getCategoryIcon(c)} ${escapeHTML(c)}</span>
+                        <input type="number" min="0" step="0.01" inputmode="decimal" name="b${i}"
+                               value="${budgets[c] || ""}" placeholder="No limit"></label>`).join("")}
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="secondary-button" data-close>Cancel</button>
+                <button type="submit" class="primary-button">Save budgets</button>
+            </div>
+        </form>`);
+    overlay.querySelector("#budgetForm").addEventListener("submit", e => {
+        e.preventDefault();
+        const limits = {};
+        cats.forEach((c, i) => {
+            const v = Math.round(Number(e.target.elements[`b${i}`].value) * 100) / 100;
+            if (v > 0) limits[c] = v;
+        });
+        saveBudgets(currentUser.uid, limits).catch(reportWriteError);
+        close();
+        toast("Budgets saved", "success");
+    });
+}
+$("editBudgetsButton").addEventListener("click", openBudgetEditor);
+
+// =====================================================
+// COMPARISON + CHARTS
+// =====================================================
+const compact = new Intl.NumberFormat("en-KE", { notation: "compact", maximumFractionDigits: 1 });
+
+function deltaHTML(cur, prev, goodWhenUp) {
+    if (!cur && !prev) return `<span class="delta flat">—</span>`;
+    if (!prev) return `<span class="delta flat">New</span>`;
+    const pct = ((cur - prev) / Math.abs(prev)) * 100;
+    if (Math.abs(pct) < 0.5) return `<span class="delta flat">No change</span>`;
+    const up = pct > 0;
+    return `<span class="delta ${up === goodWhenUp ? "good" : "bad"}">${up ? "▲" : "▼"} ${Math.abs(pct).toFixed(0)}%</span>`;
+}
+
+function renderComparison() {
+    const box = $("comparisonCard");
+    if (selectedMonth === "all") {
+        box.innerHTML = emptyState("📅", "Pick a month", "Switch to a month to compare it with the previous one.");
+        return;
+    }
+    const cur = totalsFor(inMonth(selectedMonth));
+    const prevKey = shiftMonth(selectedMonth, -1);
+    const prev = totalsFor(inMonth(prevKey));
+    const row = (label, c, p, goodUp) => `
+        <div class="cmp-row">
+            <div><strong>${label}</strong><small>${formatCurrency(c)} vs ${formatCurrency(p)} in ${monthLabel(prevKey)}</small></div>
+            ${deltaHTML(c, p, goodUp)}
+        </div>`;
+    box.innerHTML = row("Income", cur.income, prev.income, true)
+        + row("Expenses", cur.expenses, prev.expenses, false)
+        + row("Net balance", cur.balance, prev.balance, true);
+}
+
+function renderCharts() {
+    const spent = {};
+    visible().filter(t => t.type === "expense").forEach(t => {
+        spent[t.category] = (spent[t.category] || 0) + Number(t.amount);
+    });
+    const entries = Object.entries(spent).sort((a, b) => b[1] - a[1]);
+    $("donutChart").innerHTML = entries.length
+        ? donutHTML(entries, formatCurrency)
+        : emptyState("🍩", "No expenses yet", "Your spending breakdown will appear here.");
+
+    const base = budgetMonth();
+    const months = [];
+    for (let i = 5; i >= 0; i--) {
+        const key = shiftMonth(base, -i);
+        const totals = totalsFor(inMonth(key));
+        const [y, m] = key.split("-").map(Number);
+        months.push({ label: new Date(y, m - 1, 1).toLocaleDateString("en-KE", { month: "short" }),
+            income: totals.income, expense: totals.expenses });
+    }
+    const trend = trendHTML(months, v => compact.format(v));
+    $("trendChart").innerHTML = trend || emptyState("📈", "No data yet", "Add transactions to see your monthly trend.");
+}
+
+// =====================================================
+// CSV EXPORT
+// =====================================================
+function csvCell(value) {
+    let v = String(value ?? "");
+    if (/^[=+\-@\t\r]/.test(v)) v = "'" + v; // stop spreadsheet formula injection
+    return /[",\n\r]/.test(v) ? `"${v.replaceAll('"', '""')}"` : v;
+}
+
+function exportCSV() {
+    const list = [...visible()].sort(byNewest);
+    if (!list.length) return toast("No transactions to export for this period.");
+    const rows = [["Date", "Description", "Type", "Category", "Amount (KES)"]]
+        .concat(list.map(t => [t.date, t.description, t.type, t.category, Number(t.amount).toFixed(2)]));
+    const csv = "\uFEFF" + rows.map(r => r.map(csvCell).join(",")).join("\r\n"); // BOM so Excel reads UTF-8
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    link.download = `pesatrack-${selectedMonth}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+    toast(`Exported ${list.length} transactions`, "success");
+}
+document.querySelectorAll("[data-export-csv]").forEach(b => b.addEventListener("click", exportCSV));
+
+// =====================================================
+// M-PESA IMPORT
+// =====================================================
+function openMpesaImport() {
+    if (!currentUser) return;
+    const { overlay, close } = openOverlay(`
+        <h3>Import from M-Pesa</h3>
+        <p class="confirm-text">Paste one or more M-Pesa confirmation messages. You can review everything before it's saved.</p>
+        <textarea id="mpesaText" rows="6" placeholder="QGH7A1B2C3 Confirmed. Ksh500.00 sent to JOHN DOE 0712345678 on 17/7/24 at 2:15 PM..."></textarea>
+        <div class="modal-actions">
+            <button type="button" class="secondary-button" data-close>Close</button>
+            <button type="button" class="primary-button" id="mpesaParse">Read messages</button>
+        </div>
+        <div id="mpesaResult"></div>`, true);
+
+    const cats = [...$("category").options].map(o => o.value);
+    let parsed = { items: [], skipped: [] };
+    const existing = new Set(transactions.map(t => t.id));
+
+    function renderResult() {
+        const { items, skipped } = parsed;
+        const box = overlay.querySelector("#mpesaResult");
+        if (!items.length) {
+            box.innerHTML = `<p class="mp-note">No transactions found. Make sure you copied the full message, starting with the transaction code (like QGH7A1B2C3).${
+                skipped.length ? ` ${skipped.length} message(s) were skipped (${[...new Set(skipped.map(s => s.reason))].join(", ")}).` : ""}</p>`;
+            return;
+        }
+        const picked = items.filter(i => i.selected);
+        const fees = picked.reduce((s, i) => s + (i.fee || 0), 0);
+        box.innerHTML = `
+            <div class="mp-list">
+                ${items.map((it, i) => `
+                    <label class="mp-row ${it.dup ? "dup" : ""}">
+                        <input type="checkbox" data-sel="${i}" ${it.selected ? "checked" : ""} ${it.dup ? "disabled" : ""}>
+                        <div class="mp-main"><strong>${escapeHTML(it.description)}</strong>
+                            <small>${formatDate(it.date)}${it.dup ? " · already added" : ""}</small></div>
+                        <select data-cat="${i}" ${it.dup ? "disabled" : ""}>
+                            ${cats.map(c => `<option ${c === it.category ? "selected" : ""}>${escapeHTML(c)}</option>`).join("")}
+                        </select>
+                        <span class="mp-amt ${it.type}">${it.type === "income" ? "+" : "-"}${formatCurrency(it.amount)}</span>
+                    </label>`).join("")}
+            </div>
+            ${items.some(i => i.fee > 0) ? `
+                <label class="mp-fee"><input type="checkbox" id="mpesaFees" ${parsed.fees ? "checked" : ""}>
+                    Also record M-Pesa transaction fees as expenses (${formatCurrency(fees)})</label>` : ""}
+            ${skipped.length ? `<p class="mp-note">${skipped.length} message(s) skipped: ${[...new Set(skipped.map(s => s.reason))].join(", ")}.</p>` : ""}
+            <div class="modal-actions">
+                <button type="button" class="primary-button" id="mpesaImport" ${picked.length ? "" : "disabled"}>
+                    Import ${picked.length} transaction${picked.length === 1 ? "" : "s"}</button>
+            </div>`;
+    }
+
+    overlay.querySelector("#mpesaParse").addEventListener("click", () => {
+        const result = parseMpesa(overlay.querySelector("#mpesaText").value);
+        parsed = {
+            skipped: result.skipped, fees: true,
+            items: result.items.map(it => ({ ...it, dup: existing.has(it.id), selected: !existing.has(it.id) }))
+        };
+        renderResult();
+    });
+
+    overlay.addEventListener("change", e => {
+        if (e.target.dataset.sel !== undefined) parsed.items[e.target.dataset.sel].selected = e.target.checked;
+        if (e.target.dataset.cat !== undefined) parsed.items[e.target.dataset.cat].category = e.target.value;
+        if (e.target.id === "mpesaFees") parsed.fees = e.target.checked;
+        if (e.target.dataset.sel !== undefined) renderResult();
+    });
+
+    overlay.addEventListener("click", e => {
+        if (e.target.id !== "mpesaImport") return;
+        const now = new Date().toISOString();
+        const txs = [];
+        parsed.items.filter(i => i.selected).forEach(i => {
+            txs.push({ id: i.id, description: i.description, amount: i.amount, type: i.type,
+                category: i.category, date: i.date, createdAt: now });
+            if (parsed.fees && i.fee > 0 && !existing.has(`${i.id}-fee`)) {
+                txs.push({ id: `${i.id}-fee`, description: `M-Pesa fee (${i.code || "SMS"})`, amount: i.fee,
+                    type: "expense", category: "Bills", date: i.date, createdAt: now });
+            }
+        });
+        if (!txs.length) return;
+        importTransactions(currentUser.uid, txs).catch(reportWriteError);
+
+        // Make sure the imported transactions are visible.
+        if (selectedMonth !== "all" && !txs.some(t => monthKey(t.date) === selectedMonth)) {
+            selectedMonth = monthKey(txs.map(t => t.date).sort().pop());
+        }
+        close();
+        toast(`Imported ${txs.length} transaction${txs.length === 1 ? "" : "s"} from M-Pesa`, "success");
+    });
+}
+document.querySelectorAll("[data-open-mpesa]").forEach(b => b.addEventListener("click", openMpesaImport));
+
 // ---------- auth + live data ----------
 function updateUserInformation() {
     if (!currentUser) return;
@@ -368,14 +687,20 @@ async function migrateLocalData(uid) {
 }
 
 function renderAll() {
+    renderMonthBar();
     updateDashboard();
     renderRecentTransactions();
     renderTransactions();
     renderReports();
+    renderBanner();
+    renderBudgets();
+    renderComparison();
+    renderCharts();
 }
 
 onAuthStateChanged(auth, user => {
     if (unsubscribe) { unsubscribe(); unsubscribe = null; }
+    if (unsubscribeBudgets) { unsubscribeBudgets(); unsubscribeBudgets = null; }
     if (!user) {
         window.location.href = "auth.html";
         return;
@@ -385,10 +710,20 @@ onAuthStateChanged(auth, user => {
     setSync(navigator.onLine ? "syncing" : "offline");
 
     migrateLocalData(user.uid);
+    unsubscribeBudgets = subscribeBudgets(
+        user.uid,
+        limits => { budgets = limits; renderAll(); },
+        error => console.error("Budget sync error:", error)
+    );
     unsubscribe = subscribeTransactions(
         user.uid,
         list => {
             transactions = list;
+            if (!monthDecided) {
+                // First load: show "All time" if this month is empty but older data exists.
+                monthDecided = true;
+                if (list.length && !list.some(t => monthKey(t.date) === currentMonthKey())) selectedMonth = "all";
+            }
             renderAll();
             setSync(navigator.onLine ? "online" : "offline");
         },

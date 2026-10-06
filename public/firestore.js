@@ -57,3 +57,18 @@ export function importTransactions(uid, list) {
         batch.set(doc(db, "users", uid, "transactions", data.id), data);
     });
 }
+
+// ---------- Budgets: one document per user at users/{uid}/settings/budgets ----------
+const budgetsDoc = uid => doc(db, "users", uid, "settings", "budgets");
+
+export function subscribeBudgets(uid, onData, onError) {
+    return onSnapshot(
+        budgetsDoc(uid),
+        snap => onData(snap.exists() ? (snap.data().limits || {}) : {}),
+        onError
+    );
+}
+
+export function saveBudgets(uid, limits) {
+    return setDoc(budgetsDoc(uid), { limits, updatedAt: new Date().toISOString() });
+}
