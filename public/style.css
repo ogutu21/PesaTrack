@@ -155,7 +155,7 @@ body {
 }
 
 .nav-item.active {
-    background: rgba(79, 70, 229, 0.1);
+    background: rgba(15, 107, 99, 0.1);
     color: var(--primary);
 }
 
@@ -477,7 +477,7 @@ select:focus {
     border-color: var(--primary);
 
     box-shadow:
-        0 0 0 3px rgba(79, 70, 229, 0.1);
+        0 0 0 3px rgba(15, 107, 99, 0.1);
 }
 
 .primary-button {
@@ -1348,4 +1348,103 @@ select:focus {
     .mp-row select { grid-column: 2 / 4; }
     .month-label { min-width: 130px; }
     .donut { width: 150px; height: 150px; }
+}
+
+
+/* =====================================================
+   VISUAL REFRESH: ink-green + teal, ledger-style lists
+===================================================== */
+:root {
+    --ink: #0b2927;
+    --primary: #0f6b63;
+    --primary-dark: #0a4f49;
+    --accent: #d9962b;
+    --background: #f1f4f1;
+    --surface: #ffffff;
+    --text: #12201d;
+    --muted: #5f6f6a;
+    --border: #dfe6e2;
+    --income: #1f8a58;
+    --expense: #cf4a3c;
+    --shadow: none;
+    --font-display: "Bricolage Grotesque", "DM Sans", system-ui, sans-serif;
+    --font-body: "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+body.dark {
+    --ink: #07171a;
+    --primary: #2fb3a5;
+    --primary-dark: #249488;
+    --background: #0c1615;
+    --surface: #132320;
+    --text: #e9f1ee;
+    --muted: #93a8a2;
+    --border: #23382f;
+}
+
+body { font-family: var(--font-body); line-height: 1.5; -webkit-font-smoothing: antialiased; }
+h1, h2, h3, .summary-card h3, .brand h2, .brand h1, .month-label { font-family: var(--font-display); letter-spacing: -0.01em; }
+.transaction-amount, .summary-card h3, .category-value, .mp-amt, .budget-top, .delta, .donut-total { font-variant-numeric: tabular-nums; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---- sidebar: dark ink panel ---- */
+.sidebar { background: var(--ink); border-right: none; color: #e4efec; }
+.sidebar h1, .sidebar h2, .sidebar h3 { color: #fff; }
+.sidebar p, .sidebar small { color: #8fb0a9; }
+.brand-icon { background: var(--accent); border-radius: 12px; }
+.nav-item { color: #a9c4be; border-radius: 10px; }
+.nav-item:hover { background: rgba(255, 255, 255, 0.06); color: #fff; }
+.nav-item.active { background: rgba(255, 255, 255, 0.09); color: #fff; box-shadow: inset 3px 0 0 var(--accent); }
+.logout-button { background: transparent; color: #f0a79d; border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 10px; }
+.logout-button:hover { background: rgba(207, 74, 60, 0.18); }
+
+/* ---- page chrome ---- */
+.section-heading h2 { font-size: 28px; }
+.section-heading p { color: var(--muted); margin-top: 4px; }
+.topbar h1 { font-size: 24px; }
+
+/* ---- cards: flat, hairline, two radii by role ---- */
+.card, .summary-card { border: 1px solid var(--border); border-radius: 12px; box-shadow: none; }
+.card-header h3 { font-size: 18px; }
+.modal { border-radius: 16px; box-shadow: 0 24px 70px rgba(7, 23, 26, 0.35); }
+
+/* ---- dashboard: balance is the hero ---- */
+@media (min-width: 1101px) {
+    .summary-grid { grid-template-columns: 1.6fr 1fr 1fr 1fr; }
+}
+.summary-icon { background: var(--background); border-radius: 50%; }
+.balance-card { background: var(--ink); border-color: var(--ink); color: #fff; }
+.balance-card span { color: #9fc2ba; }
+.balance-card h3 { color: #fff; font-size: 38px; line-height: 1.1; letter-spacing: -0.02em; }
+.balance-card .summary-icon { background: rgba(255, 255, 255, 0.1); }
+.summary-card span { font-size: 13px; color: var(--muted); }
+.summary-card h3 { font-size: 24px; }
+
+/* ---- forms and buttons ---- */
+input, select, textarea { border-radius: 8px; font-family: inherit; }
+input:focus, select:focus, textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(15, 107, 99, 0.18); }
+.primary-button { background: var(--primary); color: #fff; border-radius: 8px; font-weight: 600; }
+.primary-button:hover { background: var(--primary-dark); }
+.secondary-button { border-radius: 8px; font-weight: 500; }
+.secondary-button:hover { border-color: var(--primary); color: var(--primary); }
+.install-button { border-radius: 8px; }
+
+/* ---- transactions: ledger rows, not boxes ---- */
+.transaction-list, .full-list { gap: 0; }
+.transaction-item { border: none; border-bottom: 1px solid var(--border); border-radius: 0; padding: 14px 4px; background: transparent; }
+.transaction-item:last-child { border-bottom: none; }
+.transaction-icon { border-radius: 50%; background: var(--background); }
+.transaction-info h4 { font-weight: 600; }
+.transaction-amount { font-weight: 700; }
+.transaction-actions button { border-radius: 6px; }
+
+/* ---- charts, progress, pills ---- */
+.progress { height: 6px; }
+.sync-status { font-weight: 500; }
+.month-btn, .month-all { border-radius: 8px; }
+.month-all.active { background: var(--primary); border-color: var(--primary); }
+.budget-banner { border-radius: 10px; border: 1px solid rgba(217, 150, 43, 0.35); }
+.mp-row { border-radius: 10px; }
+
+@media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
 }
