@@ -1,9 +1,10 @@
 {
-  "dependencies": {
-    "firebase": "^12.19.0"
-  },
-  "allowScripts": {
-    "@firebase/util@1.15.3": true,
-    "protobufjs@7.6.6": true
+  "name": "pesatrack",
+  "version": "1.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "firebase emulators:start --only hosting",
+    "deploy": "firebase deploy",
+    "deploy:rules": "firebase deploy --only firestore:rules"
   }
 }
