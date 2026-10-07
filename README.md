@@ -12,6 +12,10 @@
 - CSV export (Excel-friendly)
 - M-Pesa SMS import: paste messages, review, import (re-pasting never creates duplicates)
 
+- Customizable dashboard (show/hide cards) with insights: daily average, biggest expense, month-end forecast, "safe to spend today"
+- Savings goals with progress and a suggested monthly amount
+- Recurring transactions (weekly / monthly / yearly) that add themselves when due
+
 ## One-time setup
 1. `npm install -g firebase-tools`
 2. `firebase login`

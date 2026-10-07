@@ -1,13 +1,17 @@
 // Offline-capable app shell. Bump VERSION when you add files to SHELL.
-const VERSION = "pesatrack-v8";
+const VERSION = "pesatrack-v10";
 const SHELL = [
     "/", "/index.html", "/auth.html", "/style.css", "/script.js",
-    "/firestore.js", "/firebase-config.js", "/mpesa.js", "/charts.js", "/manifest.json",
+    "/firestore.js", "/firebase-config.js", "/mpesa.js", "/charts.js", "/features.js", "/recurrence.js", "/manifest.json",
     "/icons/icon-192.png", "/icons/icon-512.png"
 ];
 
 self.addEventListener("install", e => {
-    e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
+    e.waitUntil(
+        caches.open(VERSION)
+            .then(c => Promise.allSettled(SHELL.map(url => c.add(url))))
+            .then(() => self.skipWaiting())
+    );
 });
 
 self.addEventListener("activate", e => {

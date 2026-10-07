@@ -21,15 +21,18 @@ service cloud.firestore {
         && request.resource.data.date is string;
     }
 
-    // Monthly budgets: a single document per user.
+    // Per-user settings documents: budgets, savings goals, recurring transactions.
     match /users/{userId}/settings/{docId} {
-      allow read: if request.auth != null && request.auth.uid == userId;
+      allow read, delete: if request.auth != null && request.auth.uid == userId;
       allow create, update: if request.auth != null
         && request.auth.uid == userId
-        && docId == 'budgets'
-        && request.resource.data.keys().hasOnly(['limits', 'updatedAt'])
-        && request.resource.data.limits is map;
-      allow delete: if request.auth != null && request.auth.uid == userId;
+        && request.resource.data.keys().hasOnly(['limits', 'items', 'updatedAt'])
+        && (
+          (docId == 'budgets' && request.resource.data.limits is map)
+          || (docId in ['goals', 'recurring']
+              && request.resource.data.items is list
+              && request.resource.data.items.size() <= 200)
+        );
     }
 
     // Everything else is denied.

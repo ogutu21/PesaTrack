@@ -72,3 +72,12 @@ export function subscribeBudgets(uid, onData, onError) {
 export function saveBudgets(uid, limits) {
     return setDoc(budgetsDoc(uid), { limits, updatedAt: new Date().toISOString() });
 }
+
+// ---------- Lists stored as one document each: users/{uid}/settings/{goals|recurring} ----------
+const itemsDoc = (uid, name) => doc(db, "users", uid, "settings", name);
+
+export function subscribeItems(uid, name, onData, onError) {
+    return onSnapshot(itemsDoc(uid, name), snap => onData(snap.exists() ? (snap.data().items || []) : []), onError);
+}
+export const saveItems = (uid, name, items) =>
+    setDoc(itemsDoc(uid, name), { items, updatedAt: new Date().toISOString() });

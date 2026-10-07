@@ -40,13 +40,13 @@ export function donutHTML(entries, formatMoney) {
 }
 
 // months: [{ label, income, expense }]
-export function trendHTML(months, formatShort) {
+export function trendHTML(months, formatShort, W = 360, H = 190) {
     const max = Math.max(...months.flatMap(m => [m.income, m.expense]), 0);
     if (!max) return "";
-    const W = 360, H = 190, top = 14, bottom = 26, left = 6, right = 6;
+    const top = 14, bottom = 26, left = 6, right = 6;
     const plotH = H - top - bottom;
     const slot = (W - left - right) / months.length;
-    const barW = Math.min(16, slot / 2.6);
+    const barW = Math.min(W > 500 ? 34 : 16, slot / 2.6);
 
     const bars = months.map((m, i) => {
         const cx = left + slot * i + slot / 2;

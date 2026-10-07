@@ -9,6 +9,7 @@ import {
 } from "./firestore.js";
 import { parseMpesa } from "./mpesa.js";
 import { donutHTML, trendHTML } from "./charts.js";
+import { initFeatures } from "./features.js";
 
 let transactions = [];
 let currentUser = null;
@@ -701,6 +702,13 @@ function openMpesaImport(prefill = "") {
 document.querySelectorAll("[data-open-mpesa]").forEach(b => b.addEventListener("click", openMpesaImport));
 
 
+// ---------- dashboard widgets, goals, recurring ----------
+const features = initFeatures({
+    $, toast, confirmDialog, openOverlay, escapeHTML, formatCurrency, formatDate, getCategoryIcon, emptyState,
+    localToday, shiftMonth, totalsFor, inMonth, spentByCategory, budgetMonth, importTransactions, reportWriteError,
+    newId, getUser: () => currentUser, getVisible: visible, getMonth: () => selectedMonth, getBudgets: () => budgets
+});
+
 // ---------- auth + live data ----------
 function updateUserInformation() {
     if (!currentUser) return;
@@ -738,11 +746,13 @@ function renderAll() {
     renderBudgets();
     renderComparison();
     renderCharts();
+    features.render();
 }
 
 onAuthStateChanged(auth, user => {
     if (unsubscribe) { unsubscribe(); unsubscribe = null; }
     if (unsubscribeBudgets) { unsubscribeBudgets(); unsubscribeBudgets = null; }
+    features.stop();
     if (!user) {
         window.location.href = "auth.html";
         return;
@@ -752,6 +762,7 @@ onAuthStateChanged(auth, user => {
     setSync(navigator.onLine ? "syncing" : "offline");
 
     migrateLocalData(user.uid);
+    features.start(user.uid);
     unsubscribeBudgets = subscribeBudgets(
         user.uid,
         limits => { budgets = limits; renderAll(); },
@@ -796,18 +807,42 @@ $("logoutButton").addEventListener("click", logout);
 $("settingsLogoutButton").addEventListener("click", logout);
 
 // ---------- PWA ----------
-window.addEventListener("beforeinstallprompt", e => {
-    e.preventDefault();
-    deferredInstallPrompt = e;
-    $("installButton").hidden = false;
-});
-$("installButton").addEventListener("click", async () => {
+const isStandalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+const installDismissed = () => localStorage.getItem("pesatrack_install_dismissed") === "1";
+
+function showInstallBanner(text, canPrompt) {
+    if (isStandalone || installDismissed()) return;
+    $("installText").textContent = text;
+    $("installBannerButton").hidden = !canPrompt;
+    $("installBanner").hidden = false;
+}
+
+async function runInstall() {
     if (!deferredInstallPrompt) return;
     deferredInstallPrompt.prompt();
     await deferredInstallPrompt.userChoice;
     deferredInstallPrompt = null;
     $("installButton").hidden = true;
+    $("installBanner").hidden = true;
+}
+
+window.addEventListener("beforeinstallprompt", e => {
+    e.preventDefault();
+    deferredInstallPrompt = e;
+    if (!isStandalone) $("installButton").hidden = false;
+    showInstallBanner("Install PesaTrack on your phone for quick access, even offline.", true);
 });
+window.addEventListener("appinstalled", () => { $("installBanner").hidden = true; $("installButton").hidden = true; });
+$("installButton").addEventListener("click", runInstall);
+$("installBannerButton").addEventListener("click", runInstall);
+$("installDismiss").addEventListener("click", () => {
+    localStorage.setItem("pesatrack_install_dismissed", "1");
+    $("installBanner").hidden = true;
+});
+// iPhone has no install prompt: show the manual steps instead.
+if (isIOS) showInstallBanner("To install: tap the Share button, then “Add to Home Screen”.", false);
+
 if ("serviceWorker" in navigator) {
     window.addEventListener("load", () =>
         navigator.serviceWorker.register("./service-worker.js").catch(e => console.error("Service worker error:", e)));
