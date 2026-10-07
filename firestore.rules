@@ -29,7 +29,7 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(['limits', 'items', 'updatedAt'])
         && (
           (docId == 'budgets' && request.resource.data.limits is map)
-          || (docId in ['goals', 'recurring']
+          || (docId in ['goals', 'recurring', 'categories']
               && request.resource.data.items is list
               && request.resource.data.items.size() <= 200)
         );

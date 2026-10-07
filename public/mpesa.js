@@ -5,19 +5,34 @@ const AMOUNT = "Ksh\\.?\\s?([\\d,]+(?:\\.\\d{1,2})?)";
 const DATE = "(\\d{1,2})\\/(\\d{1,2})\\/(\\d{2,4})";
 
 const RULES = [
-    ["Bills", /kplc|kenya power|prepaid|zuku|safaricom|airtel|telkom|dstv|gotv|startimes|water|wifi|internet|rent|insurance|nhif|\bsha\b|nssf|kra|airtime|bundles/i],
-    ["Transport", /uber|bolt|little cab|matatu|fuel|petrol|shell|rubis|vivo energy|total ?energies|kenya airways|\bsgr\b|parking|swvl|taxi|cab\b/i],
-    ["Food", /kfc|java|naivas|quickmart|carrefour|chandarana|restaurant|cafe|coffee|pizza|hotel|butchery|supermarket|mboga|glovo|chicken|burger|bakery|eatery|kitchen|grocer|foods?\b/i],
-    ["Education", /school|university|college|academy|tuition|helb|campus|institute/i],
-    ["Health", /hospital|pharmacy|chemist|clinic|medical|dental|laborator|optical|health/i],
-    ["Entertainment", /netflix|showmax|spotify|cinema|sportpesa|betika|odibets|betway|casino|bet\b|gaming|club\b/i],
-    ["Shopping", /jumia|kilimall|mall|store|shop|boutique|fashion|electronics|hardware|mart\b|wholesale|traders|collection/i]
+    ["Rent", /\brent\b|landlord|apartments?|estates?|property|housing|caretaker/i],
+    ["Utilities", /kplc|kenya power|token|water|sewer|garbage|electric/i],
+    ["Airtime & Data", /safaricom|airtel|telkom|airtime|bundles/i],
+    ["Subscriptions", /netflix|showmax|spotify|dstv|gotv|startimes|youtube|apple|google play|prime video|zuku/i],
+    ["Bills", /wifi|internet|faiba|starlink|nhif|\bsha\b|nssf|kra|county|permit|licen[cs]e/i],
+    ["Insurance", /insurance|assurance|jubilee|britam|madison|old mutual|heritage/i],
+    ["Loans & Debt", /fuliza|m-?shwari|loan|tala|branch|zenka|okolea|saccos?|chama|credit/i],
+    ["Fuel", /petrol|fuel|shell|rubis|vivo energy|total ?energies|kenol|oilibya|ola energy/i],
+    ["Travel", /airbnb|booking|jambojet|kenya airways|\bsgr\b|easy ?coach|modern coast|flight|safari|lodge|resort/i],
+    ["Transport", /uber|bolt|little cab|matatu|swvl|parking|taxi|cab\b|boda|toll/i],
+    ["Groceries", /naivas|quickmart|carrefour|chandarana|supermarket|mboga|grocer|tuskys|cleanshelf|butchery|wholesale|market/i],
+    ["Food", /kfc|java|pizza|restaurant|cafe|coffee|hotel|glovo|chicken|burger|bakery|eatery|kitchen|foods?\b|\bbar\b|grill|chips|nyama/i],
+    ["Education", /school|university|college|academy|tuition|helb|campus|institute|nursery|kindergarten/i],
+    ["Health", /hospital|pharmacy|chemist|clinic|medical|dental|laborator|optical|health|doctor/i],
+    ["Personal Care", /salon|barber|kinyozi|beauty|\bspa\b|cosmetic|nails/i],
+    ["Clothing", /fashion|boutique|clothes|clothing|shoes|apparel|tailor|mitumba|textile/i],
+    ["Entertainment", /cinema|sportpesa|betika|odibets|betway|casino|\bbet\b|gaming|club\b|lounge|movie|concert|ticket/i],
+    ["Gifts & Donations", /church|tithe|harambee|donation|charity|mosque|offering|wedding|fundrais/i],
+    ["Home & Household", /hardware|furniture|plumb|electrician|repair|paint|household|\bgas\b|lpg/i],
+    ["Shopping", /jumia|kilimall|mall|store|shop|electronics|mart\b|traders|collection|enterprises?/i]
 ];
 
 export function guessCategory(name, type) {
     const n = name || "";
     if (type === "income") {
         if (/salary|payroll|wages/i.test(n)) return "Salary";
+        if (/refund|reversal/i.test(n)) return "Refunds";
+        if (/bonus/i.test(n)) return "Bonus";
         if (/\bltd\b|limited|enterprises|investments|company|\bco\b/i.test(n)) return "Business";
         return "Other";
     }
@@ -100,7 +115,7 @@ function parseOne({ code, body }) {
         deposit: "M-Pesa cash deposit"
     }[kind].slice(0, 100);
 
-    const category = kind === "airtime" ? "Bills" : kind === "withdraw" ? "Other" : guessCategory(party, type);
+    const category = kind === "airtime" ? "Airtime & Data" : kind === "withdraw" ? "Other" : guessCategory(party, type);
     const id = code ? `mpesa-${code}` : `mpesa-h${hash(body)}`;
 
     return { item: { id, code, kind, type, amount, fee, date, description, category } };

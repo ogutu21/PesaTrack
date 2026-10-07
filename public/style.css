@@ -1597,3 +1597,6 @@ html, body { max-width: 100%; overflow-x: hidden; }
 @media (max-width: 1500px) { .summary-card h3 { font-size: 20px; } .balance-card h3 { font-size: 30px; } }
 .widget .category-row { margin-bottom: 14px; }
 .widget .category-row:last-child { margin-bottom: 0; }
+
+.modal { max-height: 90vh; overflow-y: auto; }
+.form-group select { padding: 10px 12px; border: 1px solid var(--border); background: var(--surface); color: var(--text); }

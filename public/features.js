@@ -3,6 +3,7 @@
 import { subscribeItems, saveItems } from "./firestore.js";
 import { trendHTML } from "./charts.js";
 import { occurrences, nextOccurrence, daysIn } from "./recurrence.js";
+import { setCustomCategories, getCustomCategories, categoryExists, EMOJI_CHOICES } from "./categories.js";
 
 const WIDGETS = [
     ["insights", "Insights (daily average, biggest expense, forecast)"],
@@ -33,9 +34,9 @@ export function initFeatures(c) {
     // ---------- generic form / list modals ----------
     function openForm({ title, note, fields, submit = "Save", onSubmit }) {
         const input = f => f.type === "select"
-            ? `<select name="${f.name}">${f.options.map(o => `<option value="${esc(o.value)}" ${String(o.value) === String(f.value) ? "selected" : ""}>${esc(o.label)}</option>`).join("")}</select>`
+            ? `<select name="${f.name}" ${f.disabled ? "disabled" : ""}>${f.options.map(o => `<option value="${esc(o.value)}" ${String(o.value) === String(f.value) ? "selected" : ""}>${esc(o.label)}</option>`).join("")}</select>`
             : `<input name="${f.name}" type="${f.type || "text"}" ${f.step ? `step="${f.step}"` : ""} ${f.min !== undefined ? `min="${f.min}"` : ""}
-                 value="${esc(f.value ?? "")}" ${f.required ? "required" : ""} ${f.placeholder ? `placeholder="${esc(f.placeholder)}"` : ""}>`;
+                 value="${esc(f.value ?? "")}" ${f.required ? "required" : ""} ${f.disabled ? "disabled" : ""} ${f.placeholder ? `placeholder="${esc(f.placeholder)}"` : ""}>`;
         const { overlay, close } = c.openOverlay(`
             <h3>${esc(title)}</h3>${note ? `<p class="confirm-text">${esc(note)}</p>` : ""}
             <form>${fields.map(f => `<div class="form-group"><label>${esc(f.label)}</label>${input(f)}</div>`).join("")}
@@ -49,6 +50,7 @@ export function initFeatures(c) {
             const values = Object.fromEntries(fields.map(f => [f.name, e.target.elements[f.name].value]));
             if (onSubmit(values) !== false) close();
         });
+        return { overlay, close };
     }
 
     function openManager({ title, items, describe, addLabel, onAdd, onEdit, onDelete, empty }) {
@@ -75,6 +77,39 @@ export function initFeatures(c) {
     }
 
     const persist = (name, items) => saveItems(c.getUser().uid, name, items).catch(c.reportWriteError);
+
+    // =====================================================
+    // CUSTOM CATEGORIES
+    // =====================================================
+    function categoryForm(cat) {
+        const isNew = !cat;
+        openForm({
+            title: isNew ? "New category" : "Edit category",
+            note: isNew ? "Your own categories appear next to the built-in ones." : "To rename a category, delete it and add it again.",
+            fields: [
+                { name: "name", label: "Name", value: cat?.name, required: true, placeholder: "e.g. Coffee", disabled: !isNew },
+                { name: "type", label: "Type", type: "select", value: cat?.type || "expense", disabled: !isNew,
+                    options: [{ value: "expense", label: "Expense" }, { value: "income", label: "Income" }] },
+                { name: "icon", label: "Icon", type: "select", value: cat?.icon || EMOJI_CHOICES[0], options: EMOJI_CHOICES.map(e => ({ value: e, label: e })) }
+            ],
+            onSubmit: v => {
+                const name = (cat?.name || v.name).trim().slice(0, 24);
+                if (!name) { c.toast("Please enter a name.", "error"); return false; }
+                if (isNew && categoryExists(name)) { c.toast("A category with that name already exists.", "error"); return false; }
+                const next = { id: cat?.id || c.newId(), name, icon: v.icon, type: cat?.type || v.type };
+                const list = getCustomCategories();
+                persist("categories", isNew ? [...list, next] : list.map(x => (x.id === cat.id ? next : x)));
+                c.toast(isNew ? "Category added" : "Category updated", "success");
+            }
+        });
+    }
+
+    const manageCategories = () => openManager({
+        title: "My categories", items: getCustomCategories(), addLabel: "+ New category", empty: "Add categories like Coffee, Boda or Church.",
+        describe: x => ({ title: `${x.icon} ${x.name}`, sub: x.type === "income" ? "Income" : "Expense" }),
+        onAdd: () => categoryForm(), onEdit: categoryForm,
+        onDelete: x => { persist("categories", getCustomCategories().filter(y => y.id !== x.id)); c.toast("Category deleted. Existing transactions keep their label.", "success"); }
+    });
 
     // =====================================================
     // SAVINGS GOALS
@@ -151,15 +186,15 @@ export function initFeatures(c) {
     // =====================================================
     function recurringForm(r) {
         const isNew = !r;
-        const cats = [...c.$("category").options].map(o => ({ value: o.value, label: o.value }));
-        openForm({
+        const catOpts = type => c.categoriesFor(type).map(x => ({ value: x.name, label: `${c.getCategoryIcon(x.name)} ${x.name}` }));
+        const { overlay } = openForm({
             title: isNew ? "New recurring transaction" : "Edit recurring transaction",
             note: isNew ? "It's added automatically each time it falls due. If the start date is in the past, missed entries (up to 24) are added too." : "",
             fields: [
                 { name: "description", label: "Description", value: r?.description, required: true, placeholder: "e.g. Rent" },
                 { name: "amount", label: "Amount (KES)", type: "number", step: "0.01", min: 0.01, value: r?.amount, required: true },
                 { name: "type", label: "Type", type: "select", value: r?.type || "expense", options: [{ value: "expense", label: "Expense" }, { value: "income", label: "Income" }] },
-                { name: "category", label: "Category", type: "select", value: r?.category || "Bills", options: cats },
+                { name: "category", label: "Category", type: "select", value: r?.category || "Bills", options: catOpts(r?.type || "expense") },
                 { name: "frequency", label: "Repeats", type: "select", value: r?.frequency || "monthly", options: Object.entries(FREQ).map(([value, label]) => ({ value, label })) },
                 { name: "startDate", label: "First date", type: "date", value: r?.startDate || c.localToday(), required: true },
                 { name: "active", label: "Status", type: "select", value: r?.active === false ? "no" : "yes", options: [{ value: "yes", label: "Active" }, { value: "no", label: "Paused" }] }
@@ -175,6 +210,8 @@ export function initFeatures(c) {
                 c.toast(isNew ? "Recurring transaction added" : "Updated", "success");
             }
         });
+        const typeSel = overlay.querySelector("[name=type]"), catSel = overlay.querySelector("[name=category]");
+        typeSel.addEventListener("change", () => c.fillSelect(catSel, typeSel.value, ""));
     }
 
     const manageRecurring = () => openManager({
@@ -342,6 +379,7 @@ export function initFeatures(c) {
     c.$("customizeWidgets").addEventListener("click", customize);
     c.$("manageGoals").addEventListener("click", manageGoals);
     c.$("manageRecurring").addEventListener("click", manageRecurring);
+    c.$("manageCategories").addEventListener("click", manageCategories);
 
     return {
         render,
@@ -349,9 +387,10 @@ export function initFeatures(c) {
             loaded.goals = loaded.recurring = false;
             unsubs = [
                 subscribeItems(uid, "goals", items => { goals = items; loaded.goals = true; render(); }, e => console.error("Goals sync error:", e)),
+                subscribeItems(uid, "categories", items => { setCustomCategories(items); c.onCategoriesChanged(); }, e => console.error("Categories sync error:", e)),
                 subscribeItems(uid, "recurring", items => { recurring = items; loaded.recurring = true; render(); }, e => console.error("Recurring sync error:", e))
             ];
         },
-        stop() { unsubs.forEach(u => u()); unsubs = []; goals = []; recurring = []; }
+        stop() { unsubs.forEach(u => u()); unsubs = []; goals = []; recurring = []; setCustomCategories([]); }
     };
 }

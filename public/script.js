@@ -10,6 +10,7 @@ import {
 import { parseMpesa } from "./mpesa.js";
 import { donutHTML, trendHTML } from "./charts.js";
 import { initFeatures } from "./features.js";
+import { iconFor, categoriesFor, fillSelect, fillFilter } from "./categories.js";
 
 let transactions = [];
 let currentUser = null;
@@ -50,10 +51,7 @@ function escapeHTML(v) {
         .replaceAll('"', "&quot;").replaceAll("'", "&#039;");
 }
 
-function getCategoryIcon(c) {
-    return ({ Food: "🍔", Transport: "🚗", Shopping: "🛍️", Bills: "🧾", Education: "📚",
-        Entertainment: "🎮", Health: "❤️", Salary: "💼", Business: "🏢", Other: "💰" })[c] || "💰";
-}
+const getCategoryIcon = name => iconFor(name);
 
 function newId() {
     return crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -102,6 +100,18 @@ window.addEventListener("online", () => setSync("online"));
 window.addEventListener("offline", () => setSync("offline"));
 
 if (dateInput) dateInput.value = localToday();
+
+// ---------- categories (type-aware dropdowns) ----------
+$("type").addEventListener("change", () => fillSelect($("category"), $("type").value, ""));
+$("editType").addEventListener("change", () => fillSelect($("editCategory"), $("editType").value, ""));
+function refreshCategoryUI() {
+    fillSelect($("category"), $("type").value, $("category").value);
+    fillFilter($("categoryFilter"));
+    renderAll();
+}
+fillSelect($("category"), $("type").value, "");
+fillSelect($("editCategory"), $("editType").value, "");
+fillFilter($("categoryFilter"));
 
 // ---------- navigation ----------
 function openSection(name, push = true) {
@@ -169,6 +179,7 @@ $("transactionForm").addEventListener("submit", event => {
     const before = tx.type === "expense" ? (spentByCategory(monthKey(tx.date))[tx.category] || 0) : 0;
     saveTransaction(currentUser.uid, tx).catch(reportWriteError); // UI updates instantly via snapshot
     $("transactionForm").reset();
+    fillSelect($("category"), $("type").value, "");
     dateInput.value = localToday();
     toast("Transaction added", "success");
     if (tx.type === "expense") budgetCheck(tx.category, before, before + tx.amount);
@@ -299,7 +310,7 @@ function openEditModal(id) {
     $("editDescription").value = t.description;
     $("editAmount").value = t.amount;
     $("editType").value = t.type;
-    $("editCategory").value = t.category;
+    fillSelect($("editCategory"), t.type, t.category);
     $("editDate").value = t.date;
     editModal.hidden = false;
 }
@@ -409,8 +420,7 @@ $("allTimeButton").addEventListener("click", () => setMonth(selectedMonth === "a
 // =====================================================
 // BUDGETS
 // =====================================================
-const INCOME_ONLY = ["Salary", "Business"];
-const expenseCategories = () => [...$("category").options].map(o => o.value).filter(v => !INCOME_ONLY.includes(v));
+const expenseCategories = () => categoriesFor("expense").map(c => c.name);
 const budgetMonth = () => (selectedMonth === "all" ? currentMonthKey() : selectedMonth);
 
 function spentByCategory(key) {
@@ -607,7 +617,11 @@ function openMpesaImport(prefill = "") {
         </div>
         <div id="mpesaResult"></div>`, true);
 
-    const cats = [...$("category").options].map(o => o.value);
+    const catOptions = it => {
+        const names = categoriesFor(it.type).map(c => c.name);
+        if (!names.includes(it.category)) names.unshift(it.category);
+        return names.map(n => `<option value="${escapeHTML(n)}" ${n === it.category ? "selected" : ""}>${getCategoryIcon(n)} ${escapeHTML(n)}</option>`).join("");
+    };
     let parsed = { items: [], skipped: [] };
     const existing = new Set(transactions.map(t => t.id));
 
@@ -629,7 +643,7 @@ function openMpesaImport(prefill = "") {
                         <div class="mp-main"><strong>${escapeHTML(it.description)}</strong>
                             <small>${formatDate(it.date)}${it.dup ? " · already added" : ""}</small></div>
                         <select data-cat="${i}" ${it.dup ? "disabled" : ""}>
-                            ${cats.map(c => `<option ${c === it.category ? "selected" : ""}>${escapeHTML(c)}</option>`).join("")}
+                            ${catOptions(it)}
                         </select>
                         <span class="mp-amt ${it.type}">${it.type === "income" ? "+" : "-"}${formatCurrency(it.amount)}</span>
                     </label>`).join("")}
@@ -685,7 +699,7 @@ function openMpesaImport(prefill = "") {
                 category: i.category, date: i.date, createdAt: now });
             if (parsed.fees && i.fee > 0 && !existing.has(`${i.id}-fee`)) {
                 txs.push({ id: `${i.id}-fee`, description: `M-Pesa fee (${i.code || "SMS"})`, amount: i.fee,
-                    type: "expense", category: "Bills", date: i.date, createdAt: now });
+                    type: "expense", category: "Fees & Charges", date: i.date, createdAt: now });
             }
         });
         if (!txs.length) return;
@@ -706,7 +720,7 @@ document.querySelectorAll("[data-open-mpesa]").forEach(b => b.addEventListener("
 const features = initFeatures({
     $, toast, confirmDialog, openOverlay, escapeHTML, formatCurrency, formatDate, getCategoryIcon, emptyState,
     localToday, shiftMonth, totalsFor, inMonth, spentByCategory, budgetMonth, importTransactions, reportWriteError,
-    newId, getUser: () => currentUser, getVisible: visible, getMonth: () => selectedMonth, getBudgets: () => budgets
+    newId, categoriesFor, fillSelect, onCategoriesChanged: () => refreshCategoryUI(), getUser: () => currentUser, getVisible: visible, getMonth: () => selectedMonth, getBudgets: () => budgets
 });
 
 // ---------- auth + live data ----------

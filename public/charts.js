@@ -1,12 +1,10 @@
 // Dependency-free SVG charts. Pure functions that return HTML strings.
 
+import { colorFor } from "./categories.js";
+
 const esc = v => String(v).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
 
-const PALETTE = {
-    Food: "#f97316", Transport: "#0ea5e9", Shopping: "#ec4899", Bills: "#8b5cf6",
-    Education: "#14b8a6", Entertainment: "#eab308", Health: "#ef4444", Other: "#6b7280"
-};
-const colorFor = c => PALETTE[c] || "#6366f1";
+
 
 // entries: [[category, amount], ...] sorted largest first
 export function donutHTML(entries, formatMoney) {

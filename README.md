@@ -13,6 +13,7 @@
 - M-Pesa SMS import: paste messages, review, import (re-pasting never creates duplicates)
 
 - Customizable dashboard (show/hide cards) with insights: daily average, biggest expense, month-end forecast, "safe to spend today"
+- 39 built-in categories (28 expense, 12 income incl. Other) plus your own custom ones; dropdowns follow the transaction type
 - Savings goals with progress and a suggested monthly amount
 - Recurring transactions (weekly / monthly / yearly) that add themselves when due
 
