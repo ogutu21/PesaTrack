@@ -14,6 +14,9 @@ let transactions = [];
 let currentUser = null;
 let unsubscribe = null;
 let unsubscribeBudgets = null;
+// "Share to PesaTrack" (Android): the shared SMS text arrives as ?text=...
+const sharedParams = new URLSearchParams(location.search);
+let pendingShare = [sharedParams.get("title"), sharedParams.get("text"), sharedParams.get("url")].filter(Boolean).join("\n") || null;
 let budgets = {};                       // { Food: 5000, ... }
 let selectedMonth = currentMonthKey();  // "YYYY-MM" or "all"
 let monthDecided = false;               // true once the user (or first load) picked a view
@@ -100,13 +103,18 @@ window.addEventListener("offline", () => setSync("offline"));
 if (dateInput) dateInput.value = localToday();
 
 // ---------- navigation ----------
-function openSection(name) {
+function openSection(name, push = true) {
     pageSections.forEach(s => s.classList.remove("active"));
     $(name)?.classList.add("active");
     [...navItems, ...mobileNavItems].forEach(i => i.classList.toggle("active", i.dataset.section === name));
     $("pageTitle").textContent = ({ dashboard: "Dashboard", transactions: "Transactions",
         reports: "Reports", settings: "Settings" })[name] || "PesaTrack";
     $("monthBar").hidden = name === "settings";
+    // Phone Back button + on-screen Back button support
+    if (push && location.hash !== `#${name}`) history.pushState({ section: name }, "", `#${name}`);
+    $("backButton").hidden = name === "dashboard";
+    $("mobileMenuButton").hidden = name !== "dashboard";
+    window.scrollTo(0, 0);
     if (name === "settings") updateUserInformation();
     if (name === "reports") renderReports();
     sidebar.classList.remove("open");
@@ -115,6 +123,22 @@ function openSection(name) {
 document.querySelectorAll("[data-section-link]").forEach(b =>
     b.addEventListener("click", () => openSection(b.dataset.sectionLink)));
 $("mobileMenuButton").addEventListener("click", () => sidebar.classList.toggle("open"));
+// Back: phone/browser Back moves between pages; the on-screen button returns Home.
+const SECTIONS = ["dashboard", "transactions", "reports", "settings"];
+window.addEventListener("popstate", () => {
+    const name = location.hash.slice(1);
+    openSection(SECTIONS.includes(name) ? name : "dashboard", false);
+});
+$("backButton").addEventListener("click", () => openSection("dashboard"));
+document.addEventListener("click", e => {   // tap outside the drawer closes it
+    if (sidebar.classList.contains("open") && !e.target.closest(".sidebar, #mobileMenuButton")) sidebar.classList.remove("open");
+});
+{
+    const start = location.hash.slice(1);
+    const first = SECTIONS.includes(start) ? start : "dashboard";
+    history.replaceState({ section: first }, "", `#${first}`);
+    openSection(first, false);
+}
 
 // ---------- add transaction ----------
 function reportWriteError(error) {
@@ -569,7 +593,7 @@ document.querySelectorAll("[data-export-csv]").forEach(b => b.addEventListener("
 // =====================================================
 // M-PESA IMPORT
 // =====================================================
-function openMpesaImport() {
+function openMpesaImport(prefill = "") {
     if (!currentUser) return;
     const { overlay, close } = openOverlay(`
         <h3>Import from M-Pesa</h3>
@@ -577,6 +601,7 @@ function openMpesaImport() {
         <textarea id="mpesaText" rows="6" placeholder="QGH7A1B2C3 Confirmed. Ksh500.00 sent to JOHN DOE 0712345678 on 17/7/24 at 2:15 PM..."></textarea>
         <div class="modal-actions">
             <button type="button" class="secondary-button" data-close>Close</button>
+            <button type="button" class="secondary-button" id="mpesaPaste">📋 Paste</button>
             <button type="button" class="primary-button" id="mpesaParse">Read messages</button>
         </div>
         <div id="mpesaResult"></div>`, true);
@@ -627,6 +652,22 @@ function openMpesaImport() {
         renderResult();
     });
 
+    overlay.querySelector("#mpesaPaste").addEventListener("click", async () => {
+        try {
+            const text = await navigator.clipboard.readText();
+            if (!text.trim()) return toast("Your clipboard is empty. Copy an M-Pesa message first.");
+            overlay.querySelector("#mpesaText").value = text;
+            overlay.querySelector("#mpesaParse").click();
+        } catch {
+            toast("Couldn't read the clipboard. Paste into the box instead.");
+        }
+    });
+
+    if (prefill) {
+        overlay.querySelector("#mpesaText").value = prefill;
+        overlay.querySelector("#mpesaParse").click();
+    }
+
     overlay.addEventListener("change", e => {
         if (e.target.dataset.sel !== undefined) parsed.items[e.target.dataset.sel].selected = e.target.checked;
         if (e.target.dataset.cat !== undefined) parsed.items[e.target.dataset.cat].category = e.target.value;
@@ -658,6 +699,7 @@ function openMpesaImport() {
     });
 }
 document.querySelectorAll("[data-open-mpesa]").forEach(b => b.addEventListener("click", openMpesaImport));
+
 
 // ---------- auth + live data ----------
 function updateUserInformation() {
@@ -726,6 +768,12 @@ onAuthStateChanged(auth, user => {
             }
             renderAll();
             setSync(navigator.onLine ? "online" : "offline");
+            if (pendingShare) {   // opened via Share → PesaTrack
+                const text = pendingShare;
+                pendingShare = null;
+                history.replaceState(history.state, "", location.pathname + location.hash);
+                openMpesaImport(text);
+            }
         },
         error => {
             console.error("Live sync error:", error);

@@ -33,3 +33,8 @@ Deploy the rules first if you're in a hurry (the old rules expire on 2026-11-04)
 ## Cleanup of your old project
 - Delete the old package.json / package-lock.json (no npm dependencies are needed)
 - skills-lock.json is AI-tool metadata; it's git-ignored
+
+## Adding M-Pesa transactions (free plan)
+- **Android:** install the app, then in Messages long-press an M-Pesa SMS → Share → PesaTrack.
+- **Any phone:** copy the SMS, open PesaTrack → Import M-Pesa → Paste.
+Everything runs on the free Spark plan; no Cloud Functions are used.

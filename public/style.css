@@ -1448,3 +1448,93 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--p
 @media (prefers-reduced-motion: reduce) {
     * { animation: none !important; transition: none !important; }
 }
+
+
+/* =====================================================
+   MOBILE FIXES + POLISH
+===================================================== */
+[hidden] { display: none !important; }
+html, body { max-width: 100%; overflow-x: hidden; }
+.main { min-width: 0; max-width: 100%; }
+.dashboard-grid, .reports-grid, .settings-grid { grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 1101px) {
+    .dashboard-grid, .reports-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+.dashboard-grid > *, .reports-grid > *, .settings-grid > *, .transaction-left, .transaction-info { min-width: 0; }
+.transaction-info h4 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.back-button {
+    display: none; width: 40px; height: 40px; margin-right: 6px; border: 1px solid var(--border);
+    border-radius: 10px; background: var(--surface); color: var(--text); font-size: 26px; line-height: 1; cursor: pointer;
+}
+
+@media (max-width: 800px) {
+    .back-button { display: block; }
+    .mobile-nav { height: calc(64px + env(safe-area-inset-bottom, 0px)); padding-bottom: env(safe-area-inset-bottom, 0px); }
+    .main { padding: 14px 16px calc(92px + env(safe-area-inset-bottom, 0px)); }
+    .topbar { margin-bottom: 14px; padding-top: env(safe-area-inset-top, 0px); }
+    .sidebar { z-index: 300; }
+    .sidebar.open { box-shadow: 0 0 40px rgba(0, 0, 0, 0.45); }
+
+    .section-heading { flex-direction: column; align-items: stretch; gap: 12px; margin-bottom: 16px; }
+    .section-heading h2 { font-size: 24px; }
+    .heading-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .heading-actions .secondary-button { padding: 10px 8px; font-size: 13px; }
+
+    .month-bar { margin: 0 0 16px; gap: 6px; flex-wrap: nowrap; }
+    .month-label { flex: 1; min-width: 0; font-size: 15px; }
+    .month-all { padding: 0 12px; height: 38px; font-size: 13px; white-space: nowrap; }
+
+    /* summary: balance full width, the other three in a compact row */
+    .summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .summary-card { padding: 14px; gap: 10px; }
+    .summary-icon { display: none; }
+    .summary-card h3 { font-size: 18px; }
+    .summary-card span { font-size: 12px; }
+    .balance-card { grid-column: 1 / -1; padding: 20px 18px; }
+    .balance-card h3 { font-size: 32px; }
+    .summary-grid .summary-card:last-child { grid-column: 1 / -1; }
+
+    .card { padding: 16px; border-radius: 12px; }
+    .card-header { margin-bottom: 12px; }
+    .transaction-item { padding: 12px 0; gap: 10px; }
+    .transaction-icon { width: 38px; height: 38px; font-size: 17px; flex-shrink: 0; }
+    .transaction-amount { font-size: 15px; }
+    .transaction-actions { justify-content: flex-end; }
+    .donut-wrap { justify-content: center; }
+}
+@media (max-width: 550px) {
+    .main { padding-left: 14px; padding-right: 14px; }
+    .summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .sync-status { display: none; }
+    .topbar h1 { font-size: 21px; }
+}
+
+@media (max-width: 800px) {
+    .transaction-info h4 { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.3; }
+    .transaction-info p { font-size: 12px; }
+}
+@media (max-width: 550px) {
+    .form-row:has(select) { grid-template-columns: 1fr 1fr; gap: 10px; }
+    .form-group { margin-bottom: 14px; }
+    .section-heading p { font-size: 14px; }
+}
+
+#reportExpenses { color: var(--expense) !important; }
+
+
+/* ---- Automatic M-Pesa import card ---- */
+.ingest-card { margin-top: 22px; }
+.ingest-url { display: flex; gap: 8px; margin: 6px 0 12px; }
+.ingest-url input { flex: 1; min-width: 0; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px;
+    background: var(--background); color: var(--text); font: 12px ui-monospace, Consolas, monospace; }
+.ingest-label { font-size: 13px; font-weight: 600; }
+.guide { border-top: 1px solid var(--border); padding: 12px 0; font-size: 14px; }
+.guide summary { cursor: pointer; font-weight: 600; }
+.guide ol { margin: 10px 0 0 18px; padding: 0; display: flex; flex-direction: column; gap: 6px; color: var(--muted); }
+.guide code { background: var(--background); padding: 1px 6px; border-radius: 4px; }
+.ingest-note { font-size: 12px; color: var(--muted); margin-top: 8px; }
+.ingest-card .heading-actions { margin-top: 4px; }
+
+.mp-fee input[type="checkbox"], .ingest-card input[type="checkbox"] { width: auto; flex: none; margin: 0; }
+.mp-fee { align-items: center; }

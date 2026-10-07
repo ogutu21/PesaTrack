@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 
     <meta name="theme-color" content="#0b2927">
 
@@ -75,7 +75,8 @@
         <!-- TOP BAR -->
         <header class="topbar">
 
-            <button id="mobileMenuButton" class="mobile-menu">
+            <button id="backButton" class="back-button" aria-label="Back to dashboard" hidden>‹</button>
+            <button id="mobileMenuButton" class="mobile-menu" aria-label="Menu">
                 ☰
             </button>
 
@@ -779,6 +780,31 @@
 
             </div>
 
+        
+            <div class="card ingest-card">
+                <div class="card-header">
+                    <div>
+                        <h3>Adding M-Pesa transactions quickly</h3>
+                        <p>PesaTrack reads M-Pesa messages and records them as income or expenses.</p>
+                    </div>
+                </div>
+                <details class="guide" open>
+                    <summary>Android: share the SMS to PesaTrack</summary>
+                    <ol>
+                        <li>Install PesaTrack to your home screen (browser menu → Install app).</li>
+                        <li>In your Messages app, long-press an M-Pesa message → <strong>Share</strong> → <strong>PesaTrack</strong>.</li>
+                        <li>Check the preview and tap <strong>Import</strong>.</li>
+                    </ol>
+                </details>
+                <details class="guide">
+                    <summary>iPhone or any phone: copy and paste</summary>
+                    <ol>
+                        <li>Long-press the M-Pesa message → <strong>Copy</strong> (you can copy several at once).</li>
+                        <li>In PesaTrack tap <strong>Import M-Pesa</strong> → <strong>Paste</strong>.</li>
+                        <li>Check the preview and tap <strong>Import</strong>. Messages you've already imported are skipped.</li>
+                    </ol>
+                </details>
+            </div>
         </section>
 
     </main>
