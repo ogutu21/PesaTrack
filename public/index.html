@@ -2,12 +2,22 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 
-    <meta name="theme-color" content="#4f46e5">
+    <meta name="theme-color" content="#0b2927">
 
+        <script>
+        /* Hide the app until the lock screen is ready, so nothing flashes before the PIN prompt. */
+        if (localStorage.getItem("pesatrack_lock_uid")) {
+            document.documentElement.classList.add("lock-pending");
+            setTimeout(function () { document.documentElement.classList.remove("lock-pending"); }, 6000);
+        }
+    </script>
     <title>PesaTrack</title>
 
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <link rel="manifest" href="manifest.json">
     <link rel="icon" href="icons/icon-192.png">
@@ -72,7 +82,8 @@
         <!-- TOP BAR -->
         <header class="topbar">
 
-            <button id="mobileMenuButton" class="mobile-menu">
+            <button id="backButton" class="back-button" aria-label="Back to dashboard" hidden>‹</button>
+            <button id="mobileMenuButton" class="mobile-menu" aria-label="Menu">
                 ☰
             </button>
 
@@ -82,6 +93,7 @@
             </div>
 
             <div class="topbar-actions">
+                <select id="workspaceSelect" class="workspace-select" aria-label="Workspace" hidden></select>
                 <span id="syncStatus" class="sync-status" title="Sync status">Syncing…</span>
 
                 <button id="installButton" class="install-button" hidden>
@@ -97,6 +109,23 @@
         </header>
 
 
+        <div id="workspaceBanner" class="workspace-banner" hidden></div>
+        <input type="file" id="restoreFile" accept="application/json,.json" hidden>
+
+        <div id="installBanner" class="install-banner" hidden>
+            <span id="installText"></span>
+            <button type="button" id="installBannerButton" class="primary-button">Install</button>
+            <button type="button" id="installDismiss" class="install-dismiss" aria-label="Dismiss">✕</button>
+        </div>
+
+        <!-- MONTH SELECTOR -->
+        <div id="monthBar" class="month-bar">
+            <button id="prevMonth" class="month-btn" aria-label="Previous month">‹</button>
+            <span id="monthLabel" class="month-label"></span>
+            <button id="nextMonth" class="month-btn" aria-label="Next month">›</button>
+            <button id="allTimeButton" class="secondary-button month-all">All time</button>
+        </div>
+
         <!-- ================= DASHBOARD ================= -->
 
         <section id="dashboard" class="page-section active">
@@ -107,8 +136,13 @@
                     <h2>Financial Overview</h2>
                     <p>Here's how your money is doing.</p>
                 </div>
+                <div class="heading-actions">
+                    <button type="button" class="secondary-button" data-open-mpesa>📲 Import M-Pesa</button>
+                    <button type="button" class="secondary-button" data-export-csv>⬇ Export CSV</button>
+                </div>
 
             </div>
+            <div id="budgetBanner" class="budget-banner" hidden></div>
 
 
             <!-- SUMMARY -->
@@ -167,6 +201,12 @@
 
             <!-- DASHBOARD COLUMNS -->
 
+            <div class="widgets-bar">
+                <h3>At a glance</h3>
+                <button type="button" id="customizeWidgets" class="link-button">⚙ Customize</button>
+            </div>
+            <div id="dashWidgets" class="widget-grid"></div>
+
             <div class="dashboard-grid">
 
                 <!-- ADD TRANSACTION -->
@@ -203,7 +243,7 @@
 
                             <div class="form-group">
 
-                                <label>Amount (KES)</label>
+                                <label id="amountLabel">Amount (KES)</label>
 
                                 <input
                                     type="number"
@@ -244,26 +284,26 @@
 
                                 <label>Category</label>
 
-                                <select id="category">
-
-                                    <option value="Food">Food</option>
-                                    <option value="Transport">Transport</option>
-                                    <option value="Shopping">Shopping</option>
-                                    <option value="Bills">Bills</option>
-                                    <option value="Education">Education</option>
-                                    <option value="Entertainment">Entertainment</option>
-                                    <option value="Health">Health</option>
-                                    <option value="Salary">Salary</option>
-                                    <option value="Business">Business</option>
-                                    <option value="Other">Other</option>
-
-                                </select>
+                                <select id="category"><option value="Other">Other</option></select>
 
                             </div>
 
                         </div>
 
 
+                        <details class="more-options" id="moreOptions">
+                            <summary>More options: currency, tags, note</summary>
+                            <div class="form-row">
+                                <div class="form-group"><label>Currency</label><select id="currency"></select></div>
+                                <div class="form-group" id="rateGroup" hidden><label id="rateLabel">Exchange rate</label>
+                                    <input type="number" id="rate" min="0" step="0.0001" placeholder="e.g. 129"></div>
+                            </div>
+                            <p id="convertNote" class="convert-note" hidden></p>
+                            <div class="form-row">
+                                <div class="form-group"><label>Tags</label><input type="text" id="tags" placeholder="work, trip" autocomplete="off"></div>
+                                <div class="form-group"><label>Note</label><input type="text" id="note" maxlength="200" placeholder="Optional"></div>
+                            </div>
+                        </details>
                         <div class="form-row">
 
                             <div class="form-group">
@@ -351,6 +391,10 @@
                     <h2>Transactions</h2>
                     <p>View and manage your financial activity.</p>
                 </div>
+                <div class="heading-actions">
+                    <button type="button" class="secondary-button" data-open-mpesa>📲 Import M-Pesa</button>
+                    <button type="button" class="secondary-button" data-export-csv>⬇ Export CSV</button>
+                </div>
 
             </div>
 
@@ -387,24 +431,8 @@
                     </select>
 
 
-                    <select id="categoryFilter">
-
-                        <option value="all">
-                            All Categories
-                        </option>
-
-                        <option value="Food">Food</option>
-                        <option value="Transport">Transport</option>
-                        <option value="Shopping">Shopping</option>
-                        <option value="Bills">Bills</option>
-                        <option value="Education">Education</option>
-                        <option value="Entertainment">Entertainment</option>
-                        <option value="Health">Health</option>
-                        <option value="Salary">Salary</option>
-                        <option value="Business">Business</option>
-                        <option value="Other">Other</option>
-
-                    </select>
+                    <select id="categoryFilter"><option value="all">All Categories</option></select>
+                    <select id="tagFilter"><option value="all">All Tags</option></select>
 
 
                     <select id="sortFilter">
@@ -471,6 +499,7 @@
                     <h2>Reports</h2>
                     <p>Understand where your money goes.</p>
                 </div>
+                <div class="heading-actions"><button type="button" class="secondary-button" data-open-report>📄 Summary report</button></div>
 
             </div>
 
@@ -553,6 +582,46 @@
 
             </div>
 
+        
+            <div class="reports-grid reports-extra">
+                <div class="card">
+                    <div class="card-header">
+                        <div>
+                            <h3>Budgets</h3>
+                            <p id="budgetPeriod">This month</p>
+                        </div>
+                        <button id="editBudgetsButton" class="secondary-button" type="button">Edit budgets</button>
+                    </div>
+                    <div id="budgetList" class="budget-list"></div>
+                </div>
+                <div class="card">
+                    <div class="card-header">
+                        <div>
+                            <h3>This period vs last month</h3>
+                            <p>How you compare with the month before.</p>
+                        </div>
+                    </div>
+                    <div id="comparisonCard" class="comparison"></div>
+                </div>
+                <div class="card">
+                    <div class="card-header">
+                        <div>
+                            <h3>Where your money went</h3>
+                            <p>Expenses by category.</p>
+                        </div>
+                    </div>
+                    <div id="donutChart"></div>
+                </div>
+                <div class="card">
+                    <div class="card-header">
+                        <div>
+                            <h3>Last 6 months</h3>
+                            <p>Income versus expenses.</p>
+                        </div>
+                    </div>
+                    <div id="trendChart"></div>
+                </div>
+            </div>
         </section>
 
 
@@ -719,6 +788,78 @@
 
             </div>
 
+        
+            <div class="card ingest-card" id="currencyCard">
+                <div class="card-header"><div><h3>Currency</h3><p>Your main currency. Other currencies are converted when you add them.</p></div></div>
+                <div class="form-group"><label for="baseCurrency">Main currency</label><select id="baseCurrency"></select></div>
+                <p class="ingest-note">Add a transaction in another currency under “More options” on the add form. The exchange rate you enter is remembered for next time.</p>
+            </div>
+            <div class="card ingest-card" id="householdCard">
+                <div class="card-header"><div><h3>Household</h3><p>Share a budget with family or a partner.</p></div></div>
+                <div id="householdBody"></div>
+            </div>
+            <div class="card ingest-card" id="backupCard">
+                <div class="card-header"><div><h3>Backup and restore</h3><p>Download everything as a file, or bring it back.</p></div></div>
+                <div class="heading-actions">
+                    <button type="button" class="secondary-button" data-backup>⬇ Download backup</button>
+                    <button type="button" class="secondary-button" data-restore>⬆ Restore from file</button>
+                </div>
+                <p class="ingest-note">A backup includes transactions, budgets, goals, recurring items, custom categories and currency settings for the space you're viewing.</p>
+            </div>
+            <div class="card ingest-card" id="lockCard">
+                <div class="card-header">
+                    <div>
+                        <h3>App lock</h3>
+                        <p>Require a PIN or fingerprint to open PesaTrack.</p>
+                    </div>
+                </div>
+                <div id="lockBody"></div>
+            </div>
+            <div class="card ingest-card">
+                <div class="card-header">
+                    <div>
+                        <h3>Goals and recurring payments</h3>
+                        <p>Manage savings goals and automatic transactions.</p>
+                    </div>
+                </div>
+                <div class="heading-actions">
+                    <button type="button" class="secondary-button" id="manageGoals">🎯 Savings goals</button>
+                    <button type="button" class="secondary-button" id="manageRecurring">🔁 Recurring</button>
+                    <button type="button" class="secondary-button" id="manageCategories">🏷️ My categories</button>
+                </div>
+            </div>
+            <div class="card ingest-card">
+                <div class="card-header">
+                    <div>
+                        <h3>Adding M-Pesa transactions quickly</h3>
+                        <p>PesaTrack reads M-Pesa messages and records them as income or expenses.</p>
+                    </div>
+                </div>
+                <details class="guide">
+                    <summary>Install PesaTrack on your phone</summary>
+                    <ol>
+                        <li><strong>Android (Chrome):</strong> tap the ⋮ menu → <strong>Install app</strong> (or <strong>Add to Home screen</strong>).</li>
+                        <li><strong>iPhone:</strong> open the site in <strong>Safari</strong>, tap <strong>Share</strong> → <strong>Add to Home Screen</strong>.</li>
+                        <li>Open the site in your browser itself, not inside WhatsApp, Facebook or Instagram. Those in-app browsers can't install apps.</li>
+                    </ol>
+                </details>
+                <details class="guide" open>
+                    <summary>Android: share the SMS to PesaTrack</summary>
+                    <ol>
+                        <li>Install PesaTrack to your home screen (browser menu → Install app).</li>
+                        <li>In your Messages app, long-press an M-Pesa message → <strong>Share</strong> → <strong>PesaTrack</strong>.</li>
+                        <li>Check the preview and tap <strong>Import</strong>.</li>
+                    </ol>
+                </details>
+                <details class="guide">
+                    <summary>iPhone or any phone: copy and paste</summary>
+                    <ol>
+                        <li>Long-press the M-Pesa message → <strong>Copy</strong> (you can copy several at once).</li>
+                        <li>In PesaTrack tap <strong>Import M-Pesa</strong> → <strong>Paste</strong>.</li>
+                        <li>Check the preview and tap <strong>Import</strong>. Messages you've already imported are skipped.</li>
+                    </ol>
+                </details>
+            </div>
         </section>
 
     </main>
@@ -808,20 +949,7 @@
 
                     <label>Category</label>
 
-                    <select id="editCategory">
-
-                        <option value="Food">Food</option>
-                        <option value="Transport">Transport</option>
-                        <option value="Shopping">Shopping</option>
-                        <option value="Bills">Bills</option>
-                        <option value="Education">Education</option>
-                        <option value="Entertainment">Entertainment</option>
-                        <option value="Health">Health</option>
-                        <option value="Salary">Salary</option>
-                        <option value="Business">Business</option>
-                        <option value="Other">Other</option>
-
-                    </select>
+                    <select id="editCategory"><option value="Other">Other</option></select>
 
                 </div>
 
@@ -841,6 +969,11 @@
             </div>
 
 
+            <div class="form-row">
+                <div class="form-group"><label>Tags</label><input type="text" id="editTags" placeholder="work, trip" autocomplete="off"></div>
+                <div class="form-group"><label>Note</label><input type="text" id="editNote" maxlength="200"></div>
+            </div>
+            <p id="editOrig" class="convert-note" hidden></p>
             <div class="modal-actions">
 
                 <button
