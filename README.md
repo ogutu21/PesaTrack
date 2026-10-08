@@ -14,6 +14,11 @@
 
 - Customizable dashboard (show/hide cards) with insights: daily average, biggest expense, month-end forecast, "safe to spend today"
 - 39 built-in categories (28 expense, 12 income incl. Other) plus your own custom ones; dropdowns follow the transaction type
+- Tags and notes on transactions, with search and tag filters
+- Multi-currency: add a transaction in USD, EUR, etc.; it is converted to your main currency and the original is kept
+- One-page summary report: print / save as PDF, share or copy as text
+- Backup and restore: download everything as JSON; restore by merging or replacing
+- Shared households: a separate shared space (transactions, budgets, goals) for family or a partner, joined with an invite code
 - App lock: PIN plus fingerprint/face unlock (phone biometrics via WebAuthn), auto-lock, lockout after 5 wrong PINs
 - Savings goals with progress and a suggested monthly amount
 - Recurring transactions (weekly / monthly / yearly) that add themselves when due
@@ -44,3 +49,12 @@ Deploy the rules first if you're in a hurry (the old rules expire on 2026-11-04)
 - **Android:** install the app, then in Messages long-press an M-Pesa SMS → Share → PesaTrack.
 - **Any phone:** copy the SMS, open PesaTrack → Import M-Pesa → Paste.
 Everything runs on the free Spark plan; no Cloud Functions are used.
+
+## Testing shared households (do this once after deploying)
+The household security rules cannot be tested offline, so check them with two accounts (A and B):
+1. A: Settings -> Household -> Create. Add a transaction. Copy the invite code.
+2. B: Settings -> Household -> Join with a code. B should see A's transaction and be able to add one.
+3. B: Leave. B should be returned to Personal and lose access.
+4. A: "New code", then try the OLD code from B. It must be rejected.
+5. Check that B's personal space never shows A's personal data.
+If any step fails, personal data is unaffected: only the household feature uses the new rules.

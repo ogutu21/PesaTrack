@@ -391,6 +391,7 @@ export function initFeatures(c) {
                 subscribeItems(uid, "recurring", items => { recurring = items; loaded.recurring = true; render(); }, e => console.error("Recurring sync error:", e))
             ];
         },
+        getData: () => ({ goals, recurring, categories: getCustomCategories() }),
         stop() { unsubs.forEach(u => u()); unsubs = []; goals = []; recurring = []; setCustomCategories([]); }
     };
 }

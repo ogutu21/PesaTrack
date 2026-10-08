@@ -93,6 +93,7 @@
             </div>
 
             <div class="topbar-actions">
+                <select id="workspaceSelect" class="workspace-select" aria-label="Workspace" hidden></select>
                 <span id="syncStatus" class="sync-status" title="Sync status">Syncing…</span>
 
                 <button id="installButton" class="install-button" hidden>
@@ -107,6 +108,9 @@
 
         </header>
 
+
+        <div id="workspaceBanner" class="workspace-banner" hidden></div>
+        <input type="file" id="restoreFile" accept="application/json,.json" hidden>
 
         <div id="installBanner" class="install-banner" hidden>
             <span id="installText"></span>
@@ -239,7 +243,7 @@
 
                             <div class="form-group">
 
-                                <label>Amount (KES)</label>
+                                <label id="amountLabel">Amount (KES)</label>
 
                                 <input
                                     type="number"
@@ -287,6 +291,19 @@
                         </div>
 
 
+                        <details class="more-options" id="moreOptions">
+                            <summary>More options: currency, tags, note</summary>
+                            <div class="form-row">
+                                <div class="form-group"><label>Currency</label><select id="currency"></select></div>
+                                <div class="form-group" id="rateGroup" hidden><label id="rateLabel">Exchange rate</label>
+                                    <input type="number" id="rate" min="0" step="0.0001" placeholder="e.g. 129"></div>
+                            </div>
+                            <p id="convertNote" class="convert-note" hidden></p>
+                            <div class="form-row">
+                                <div class="form-group"><label>Tags</label><input type="text" id="tags" placeholder="work, trip" autocomplete="off"></div>
+                                <div class="form-group"><label>Note</label><input type="text" id="note" maxlength="200" placeholder="Optional"></div>
+                            </div>
+                        </details>
                         <div class="form-row">
 
                             <div class="form-group">
@@ -415,6 +432,7 @@
 
 
                     <select id="categoryFilter"><option value="all">All Categories</option></select>
+                    <select id="tagFilter"><option value="all">All Tags</option></select>
 
 
                     <select id="sortFilter">
@@ -481,6 +499,7 @@
                     <h2>Reports</h2>
                     <p>Understand where your money goes.</p>
                 </div>
+                <div class="heading-actions"><button type="button" class="secondary-button" data-open-report>📄 Summary report</button></div>
 
             </div>
 
@@ -770,6 +789,23 @@
             </div>
 
         
+            <div class="card ingest-card" id="currencyCard">
+                <div class="card-header"><div><h3>Currency</h3><p>Your main currency. Other currencies are converted when you add them.</p></div></div>
+                <div class="form-group"><label for="baseCurrency">Main currency</label><select id="baseCurrency"></select></div>
+                <p class="ingest-note">Add a transaction in another currency under “More options” on the add form. The exchange rate you enter is remembered for next time.</p>
+            </div>
+            <div class="card ingest-card" id="householdCard">
+                <div class="card-header"><div><h3>Household</h3><p>Share a budget with family or a partner.</p></div></div>
+                <div id="householdBody"></div>
+            </div>
+            <div class="card ingest-card" id="backupCard">
+                <div class="card-header"><div><h3>Backup and restore</h3><p>Download everything as a file, or bring it back.</p></div></div>
+                <div class="heading-actions">
+                    <button type="button" class="secondary-button" data-backup>⬇ Download backup</button>
+                    <button type="button" class="secondary-button" data-restore>⬆ Restore from file</button>
+                </div>
+                <p class="ingest-note">A backup includes transactions, budgets, goals, recurring items, custom categories and currency settings for the space you're viewing.</p>
+            </div>
             <div class="card ingest-card" id="lockCard">
                 <div class="card-header">
                     <div>
@@ -933,6 +969,11 @@
             </div>
 
 
+            <div class="form-row">
+                <div class="form-group"><label>Tags</label><input type="text" id="editTags" placeholder="work, trip" autocomplete="off"></div>
+                <div class="form-group"><label>Note</label><input type="text" id="editNote" maxlength="200"></div>
+            </div>
+            <p id="editOrig" class="convert-note" hidden></p>
             <div class="modal-actions">
 
                 <button

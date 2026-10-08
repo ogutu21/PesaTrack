@@ -5,13 +5,18 @@ import { auth } from "./firebase-config.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
 import {
     subscribeTransactions, saveTransaction, deleteTransaction,
-    clearTransactions, importTransactions, subscribeBudgets, saveBudgets
+    clearTransactions, importTransactions, subscribeBudgets, saveBudgets,
+    useRoot, subscribeCurrency, saveCurrency, normalizeTags
 } from "./firestore.js";
 import { parseMpesa } from "./mpesa.js";
 import { donutHTML, trendHTML } from "./charts.js";
 import { initFeatures } from "./features.js";
 import { iconFor, categoriesFor, fillSelect, fillFilter } from "./categories.js";
 import { initAppLock } from "./applock.js";
+import { CURRENCIES, getBase, getRates, setCurrencySettings, formatMoney, formatIn, convert } from "./currency.js";
+import { initReport } from "./report.js";
+import { initBackup } from "./backup.js";
+import { initHousehold } from "./household.js";
 
 let transactions = [];
 let currentUser = null;
@@ -39,8 +44,7 @@ function localToday() {
     return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`; // local time, not UTC
 }
 
-const money = new Intl.NumberFormat("en-KE", { style: "currency", currency: "KES", minimumFractionDigits: 2 });
-const formatCurrency = amount => money.format(amount);
+const formatCurrency = amount => formatMoney(amount);
 
 function formatDate(s) {
     if (!s) return "";
@@ -163,7 +167,7 @@ $("transactionForm").addEventListener("submit", event => {
     if (!currentUser) return;
 
     const description = $("description").value.trim();
-    const amount = Math.round(Number($("amount").value) * 100) / 100;
+    let amount = Math.round(Number($("amount").value) * 100) / 100;
     const date = $("date").value;
 
     if (!description || !(amount > 0) || !date) {
@@ -171,9 +175,21 @@ $("transactionForm").addEventListener("submit", event => {
         return;
     }
 
+    // Other currencies are converted to the main currency; the original is kept on the transaction.
+    const code = $("currency").value, base = getBase();
+    let orig;
+    if (code !== base) {
+        const rate = Number($("rate").value);
+        if (!(rate > 0)) { toast(`Enter the exchange rate for ${code}.`, "error"); $("moreOptions").open = true; return; }
+        orig = { currency: code, amount };
+        amount = convert(amount, rate);
+        if (getRates()[code] !== rate) saveCurrency(currentUser.uid, base, { ...getRates(), [code]: rate }).catch(() => {});
+    }
     const tx = {
-        id: newId(), description, amount, date,
+        id: newId(), description, amount, date, orig,
         type: $("type").value, category: $("category").value,
+        tags: normalizeTags($("tags").value), note: $("note").value.trim(),
+        by: workspace.id ? (currentUser.displayName || (currentUser.email || "Member").split("@")[0]) : undefined,
         createdAt: new Date().toISOString()
     };
 
@@ -181,6 +197,7 @@ $("transactionForm").addEventListener("submit", event => {
     saveTransaction(currentUser.uid, tx).catch(reportWriteError); // UI updates instantly via snapshot
     $("transactionForm").reset();
     fillSelect($("category"), $("type").value, "");
+    setupCurrencyForm();
     dateInput.value = localToday();
     toast("Transaction added", "success");
     if (tx.type === "expense") budgetCheck(tx.category, before, before + tx.amount);
@@ -212,13 +229,19 @@ function updateDashboard() {
 function transactionHTML(t) {
     const isIncome = t.type === "income";
     const id = escapeHTML(t.id);
+    const meta = [escapeHTML(t.category), formatDate(t.date)];
+    if (t.orig) meta.push(escapeHTML(formatIn(t.orig.amount, t.orig.currency)));
+    if (t.by) meta.push(escapeHTML(t.by));
+    const chips = (t.tags || []).map(x => `<span class="tag-chip" data-tag="${escapeHTML(x)}">#${escapeHTML(x)}</span>`).join("");
+    const note = t.note ? `<span class="tx-note">${escapeHTML(t.note)}</span>` : "";
     return `
         <div class="transaction-item" data-id="${id}">
             <div class="transaction-left">
                 <div class="transaction-icon">${getCategoryIcon(t.category)}</div>
                 <div class="transaction-info">
                     <h4>${escapeHTML(t.description)}</h4>
-                    <p>${escapeHTML(t.category)} • ${formatDate(t.date)}</p>
+                    <p>${meta.join(" • ")}</p>
+                    ${chips || note ? `<div class="tag-row">${chips}${note}</div>` : ""}
                 </div>
             </div>
             <div class="transaction-right">
@@ -251,12 +274,14 @@ function renderTransactions() {
     const search = $("searchInput").value.trim().toLowerCase();
     const type = $("typeFilter").value;
     const category = $("categoryFilter").value;
+    const tag = $("tagFilter").value;
     const sort = $("sortFilter").value;
 
     let list = visible().filter(t =>
-        (!search || t.description.toLowerCase().includes(search) || t.category.toLowerCase().includes(search)) &&
+        (!search || [t.description, t.category, t.note || "", ...(t.tags || []).flatMap(x => [x, "#" + x])].join(" ").toLowerCase().includes(search)) &&
         (type === "all" || t.type === type) &&
-        (category === "all" || t.category === category));
+        (category === "all" || t.category === category) &&
+        (tag === "all" || (t.tags || []).includes(tag)));
 
     const sorters = {
         newest: byNewest,
@@ -272,10 +297,24 @@ function renderTransactions() {
 }
 
 ["searchInput"].forEach(id => $(id).addEventListener("input", renderTransactions));
-["typeFilter", "categoryFilter", "sortFilter"].forEach(id => $(id).addEventListener("change", renderTransactions));
+["typeFilter", "categoryFilter", "tagFilter", "sortFilter"].forEach(id => $(id).addEventListener("change", renderTransactions));
+
+function renderTagFilter() {
+    const sel = $("tagFilter"), keep = sel.value || "all";
+    const tags = [...new Set(transactions.flatMap(t => t.tags || []))].sort();
+    sel.innerHTML = `<option value="all">All Tags</option>` + tags.map(t => `<option value="${escapeHTML(t)}" ${t === keep ? "selected" : ""}>#${escapeHTML(t)}</option>`).join("");
+    if (keep !== "all" && !tags.includes(keep)) sel.value = "all";
+}
 
 // ---------- edit / delete ----------
 document.addEventListener("click", event => {
+    const chip = event.target.closest(".tag-chip");
+    if (chip) {   // tap a tag to see everything with that tag
+        openSection("transactions");
+        $("tagFilter").value = chip.dataset.tag;
+        renderTransactions();
+        return;
+    }
     const button = event.target.closest("[data-action]");
     if (!button) return;
     if (button.dataset.action === "delete") removeTransaction(button.dataset.id);
@@ -292,7 +331,7 @@ async function removeTransaction(id) {
 
 async function clearAll() {
     if (transactions.length === 0) return toast("There are no transactions to clear.");
-    if (!(await confirmDialog("Permanently delete ALL your transactions? This cannot be undone.", "Delete all"))) return;
+    if (!(await confirmDialog(workspace.id ? `Permanently delete ALL transactions in the shared household “${workspace.name}”, for everyone? This cannot be undone.` : "Permanently delete ALL your transactions? This cannot be undone.", "Delete all"))) return;
     try {
         await clearTransactions(currentUser.uid);
         toast("All transactions deleted", "success");
@@ -313,6 +352,10 @@ function openEditModal(id) {
     $("editType").value = t.type;
     fillSelect($("editCategory"), t.type, t.category);
     $("editDate").value = t.date;
+    $("editTags").value = (t.tags || []).join(", ");
+    $("editNote").value = t.note || "";
+    $("editOrig").hidden = !t.orig;
+    if (t.orig) $("editOrig").textContent = `Entered as ${formatIn(t.orig.amount, t.orig.currency)}. Changing the amount above removes this note.`;
     editModal.hidden = false;
 }
 const closeEditModal = () => { editModal.hidden = true; };
@@ -332,8 +375,11 @@ $("editTransactionForm").addEventListener("submit", event => {
         amount: Math.round(Number($("editAmount").value) * 100) / 100,
         type: $("editType").value,
         category: $("editCategory").value,
-        date: $("editDate").value
+        date: $("editDate").value,
+        tags: normalizeTags($("editTags").value),
+        note: $("editNote").value.trim()
     };
+    if (updated.amount !== original.amount) delete updated.orig;
     if (!updated.description || !(updated.amount > 0) || !updated.date) {
         return toast("Please enter valid transaction details.", "error");
     }
@@ -588,8 +634,9 @@ function csvCell(value) {
 function exportCSV() {
     const list = [...visible()].sort(byNewest);
     if (!list.length) return toast("No transactions to export for this period.");
-    const rows = [["Date", "Description", "Type", "Category", "Amount (KES)"]]
-        .concat(list.map(t => [t.date, t.description, t.type, t.category, Number(t.amount).toFixed(2)]));
+    const rows = [["Date", "Description", "Type", "Category", `Amount (${getBase()})`, "Original amount", "Original currency", "Tags", "Note", "Added by"]]
+        .concat(list.map(t => [t.date, t.description, t.type, t.category, Number(t.amount).toFixed(2),
+            t.orig ? t.orig.amount.toFixed(2) : "", t.orig ? t.orig.currency : "", (t.tags || []).join(" "), t.note || "", t.by || ""]));
     const csv = "\uFEFF" + rows.map(r => r.map(csvCell).join(",")).join("\r\n"); // BOM so Excel reads UTF-8
     const link = document.createElement("a");
     link.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
@@ -756,6 +803,7 @@ async function migrateLocalData(uid) {
 
 function renderAll() {
     renderMonthBar();
+    renderTagFilter();
     updateDashboard();
     renderRecentTransactions();
     renderTransactions();
@@ -767,28 +815,84 @@ function renderAll() {
     features.render();
 }
 
-onAuthStateChanged(auth, user => {
-    appLock.onUser(user);
-    if (unsubscribe) { unsubscribe(); unsubscribe = null; }
-    if (unsubscribeBudgets) { unsubscribeBudgets(); unsubscribeBudgets = null; }
-    features.stop();
-    if (!user) {
-        window.location.href = "auth.html";
-        return;
-    }
-    currentUser = user;
-    updateUserInformation();
-    setSync(navigator.onLine ? "syncing" : "offline");
+// =====================================================
+// WORKSPACES (personal space or a shared household) + data loading
+// =====================================================
+let workspace = { id: null, name: "Personal" };   // id null = your own space
+let unsubscribeCurrency = null;
+const wsKey = uid => `pesatrack_ws_${uid}`;
 
-    migrateLocalData(user.uid);
-    features.start(user.uid);
+function setupCurrencyForm() {
+    const sel = $("currency"), base = getBase(), keep = sel.value || base;
+    const codes = [base, ...CURRENCIES.map(x => x[0]).filter(x => x !== base)];
+    sel.innerHTML = codes.map(code => `<option value="${code}" ${code === keep ? "selected" : ""}>${code}</option>`).join("");
+    if (!codes.includes(keep)) sel.value = base;
+    $("rate").value = "";
+    updateRateUI();
+}
+function updateRateUI() {
+    const code = $("currency").value || getBase(), base = getBase(), foreign = code !== base;
+    $("rateGroup").hidden = !foreign;
+    $("amountLabel").textContent = `Amount (${code})`;
+    if (foreign) {
+        $("rateLabel").textContent = `Rate: 1 ${code} = ? ${base}`;
+        if (!$("rate").value && getRates()[code]) $("rate").value = getRates()[code];
+    }
+    updateConvertNote();
+}
+function updateConvertNote() {
+    const code = $("currency").value, foreign = code !== getBase(), amt = Number($("amount").value), rate = Number($("rate").value);
+    const note = $("convertNote");
+    note.hidden = !(foreign && amt > 0 && rate > 0);
+    if (!note.hidden) note.textContent = `= ${formatMoney(convert(amt, rate))}  (${formatIn(amt, code)} at ${rate})`;
+}
+$("currency").addEventListener("change", () => { $("rate").value = ""; updateRateUI(); });
+$("amount").addEventListener("input", updateConvertNote);
+$("rate").addEventListener("input", updateConvertNote);
+
+function renderCurrencySettings() {
+    $("baseCurrency").innerHTML = CURRENCIES.map(([code, label]) => `<option value="${code}" ${code === getBase() ? "selected" : ""}>${code} · ${label}</option>`).join("");
+}
+$("baseCurrency").addEventListener("change", async e => {
+    const next = e.target.value;
+    const ok = await confirmDialog(`Change your main currency to ${next}? Existing amounts are not converted: they will be shown as ${next}.`, "Change");
+    if (!ok) return renderCurrencySettings();
+    saveCurrency(currentUser.uid, next, {}).catch(reportWriteError);
+});
+
+function updateWorkspaceUI() {
+    const banner = $("workspaceBanner");
+    banner.hidden = !workspace.id;
+    banner.textContent = workspace.id ? `🏠 Shared household: ${workspace.name}. Everyone in it sees these transactions.` : "";
+    $("welcomeText").textContent = workspace.id ? workspace.name : `Welcome back, ${(currentUser?.displayName || "").split(" ")[0] || "there"}!`;
+}
+
+function stopData() {
+    [unsubscribe, unsubscribeBudgets, unsubscribeCurrency].forEach(u => u && u());
+    unsubscribe = unsubscribeBudgets = unsubscribeCurrency = null;
+    features.stop();
+}
+
+function startData() {
+    stopData();
+    transactions = []; budgets = {};
+    setCurrencySettings(null);
+    useRoot(workspace.id ? ["households", workspace.id] : null);
+    setSync(navigator.onLine ? "syncing" : "offline");
+    if (!workspace.id) migrateLocalData(currentUser.uid);
+    features.start(currentUser.uid);
+    unsubscribeCurrency = subscribeCurrency(
+        currentUser.uid,
+        settings => { setCurrencySettings(settings); setupCurrencyForm(); renderCurrencySettings(); renderAll(); },
+        error => console.error("Currency sync error:", error)
+    );
     unsubscribeBudgets = subscribeBudgets(
-        user.uid,
+        currentUser.uid,
         limits => { budgets = limits; renderAll(); },
         error => console.error("Budget sync error:", error)
     );
     unsubscribe = subscribeTransactions(
-        user.uid,
+        currentUser.uid,
         list => {
             transactions = list;
             if (!monthDecided) {
@@ -806,11 +910,44 @@ onAuthStateChanged(auth, user => {
             }
         },
         error => {
+            if (workspace.id && error?.code === "permission-denied") return;   // household.js handles losing access
             console.error("Live sync error:", error);
             toast("Couldn't load your data. Check your connection and refresh.", "error");
             setSync("offline");
         }
     );
+    renderAll();
+}
+
+function switchWorkspace(id, name) {
+    workspace = id ? { id, name: name || "Household" } : { id: null, name: "Personal" };
+    localStorage.setItem(wsKey(currentUser.uid), id || "personal");
+    monthDecided = false; selectedMonth = currentMonthKey();
+    startData();
+    household.refresh();
+    updateWorkspaceUI();
+}
+
+const household = initHousehold({ $, toast, confirmDialog, openOverlay, escapeHTML, getUser: () => currentUser, getWorkspace: () => workspace, switchWorkspace });
+initReport({ escapeHTML, formatCurrency, formatDate, getCategoryIcon, toast, openOverlay, getVisible: visible, getMonth: () => selectedMonth,
+    monthLabel, inMonth, totalsFor, shiftMonth, getBudgets: () => budgets, spentByCategory, budgetMonth,
+    workspaceName: () => workspace.name, userName: () => currentUser?.displayName || currentUser?.email || "" });
+initBackup({ $, toast, confirmDialog, openOverlay, escapeHTML, localToday, getTransactions: () => transactions, getBudgets: () => budgets,
+    getFeatureData: () => features.getData(), getUser: () => currentUser, workspaceName: () => workspace.name });
+
+onAuthStateChanged(auth, user => {
+    appLock.onUser(user);
+    stopData();
+    if (!user) {
+        window.location.href = "auth.html";
+        return;
+    }
+    currentUser = user;
+    updateUserInformation();
+    workspace = { id: null, name: "Personal" };
+    household.onUser(user);      // loads your households; reopens the one you were last using
+    startData();
+    updateWorkspaceUI();
 });
 
 async function logout() {

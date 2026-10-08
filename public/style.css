@@ -1635,3 +1635,53 @@ body.lock-open { overflow: hidden; }
 #lockCard .form-group { margin: 14px 0; }
 
 .lock-pad button { height: auto; aspect-ratio: 1 / 1; max-width: 78px; width: 100%; justify-self: center; }
+
+
+/* =====================================================
+   TAGS, CURRENCY, REPORT, HOUSEHOLD
+===================================================== */
+.more-options { margin: 4px 0 14px; border: 1px dashed var(--border); border-radius: 10px; padding: 8px 12px; }
+.more-options summary { cursor: pointer; font-size: 13px; font-weight: 600; color: var(--primary); }
+.more-options[open] { padding-bottom: 4px; }
+.more-options .form-row { margin-top: 12px; }
+.convert-note { font-size: 13px; color: var(--muted); margin: -4px 0 10px; }
+.tag-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; align-items: center; }
+.tag-chip { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: rgba(15, 107, 99, 0.12); color: var(--primary); cursor: pointer; }
+.tag-chip:hover { background: rgba(15, 107, 99, 0.22); }
+.tx-note { font-size: 12px; color: var(--muted); font-style: italic; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+#tagFilter { max-width: 150px; }
+
+.workspace-select { max-width: 160px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); font-size: 13px; }
+.workspace-banner { padding: 10px 14px; margin-bottom: 14px; border-radius: 10px; background: rgba(15, 107, 99, 0.12); color: var(--primary); font-size: 14px; font-weight: 600; }
+.hh-title { margin: 16px 0 4px; font-family: var(--font-display); }
+.hh-actions { margin: 14px 0; }
+.link-button.danger { color: var(--expense); }
+.muted { color: var(--muted); font-weight: 400; }
+
+/* report sheet */
+.report-sheet { color: var(--text); }
+.rp-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; border-bottom: 2px solid var(--ink); padding-bottom: 12px; margin-bottom: 16px; }
+.rp-head h2 { font-size: 22px; } .rp-head p, .rp-head small { color: var(--muted); font-size: 13px; }
+.rp-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 14px; }
+.rp-tiles div { background: var(--background); border-radius: 8px; padding: 10px 12px; }
+.rp-tiles small { display: block; color: var(--muted); font-size: 12px; } .rp-tiles strong { font-size: 16px; font-variant-numeric: tabular-nums; }
+.inc { color: var(--income); } .exp { color: var(--expense); }
+.rp-line { font-size: 14px; margin: 8px 0 14px; }
+.report-sheet h3 { font-size: 15px; margin: 18px 0 6px; }
+.rp-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.rp-table th { text-align: left; color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--border); padding: 6px 4px; }
+.rp-table td { padding: 7px 4px; border-bottom: 1px solid var(--border); font-variant-numeric: tabular-nums; }
+.rp-bar { display: inline-block; width: 70px; height: 6px; background: var(--border); border-radius: 3px; vertical-align: middle; margin-right: 6px; overflow: hidden; }
+.rp-bar i { display: block; height: 100%; background: var(--primary); }
+.report-actions { flex-wrap: wrap; margin-top: 18px; }
+@media (max-width: 600px) { .rp-tiles { grid-template-columns: repeat(2, 1fr); } .report-actions .secondary-button, .report-actions .primary-button { flex: 1 1 45%; } }
+
+@media print {
+    body.print-report > *:not(.report-overlay) { display: none !important; }
+    body.print-report .report-overlay { position: static !important; background: none !important; padding: 0 !important; display: block !important; }
+    body.print-report .report-overlay .modal { box-shadow: none !important; max-height: none !important; overflow: visible !important; max-width: none !important; padding: 0 !important; background: #fff !important; }
+    body.print-report .report-actions { display: none !important; }
+    body.print-report { background: #fff !important; }
+    body.print-report .report-sheet { color: #000; }
+    body.print-report .rp-bar i { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
