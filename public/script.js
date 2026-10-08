@@ -11,6 +11,7 @@ import { parseMpesa } from "./mpesa.js";
 import { donutHTML, trendHTML } from "./charts.js";
 import { initFeatures } from "./features.js";
 import { iconFor, categoriesFor, fillSelect, fillFilter } from "./categories.js";
+import { initAppLock } from "./applock.js";
 
 let transactions = [];
 let currentUser = null;
@@ -723,6 +724,9 @@ const features = initFeatures({
     newId, categoriesFor, fillSelect, onCategoriesChanged: () => refreshCategoryUI(), getUser: () => currentUser, getVisible: visible, getMonth: () => selectedMonth, getBudgets: () => budgets
 });
 
+// ---------- app lock (PIN / fingerprint) ----------
+const appLock = initAppLock({ $, toast, confirmDialog, escapeHTML, logout });
+
 // ---------- auth + live data ----------
 function updateUserInformation() {
     if (!currentUser) return;
@@ -764,6 +768,7 @@ function renderAll() {
 }
 
 onAuthStateChanged(auth, user => {
+    appLock.onUser(user);
     if (unsubscribe) { unsubscribe(); unsubscribe = null; }
     if (unsubscribeBudgets) { unsubscribeBudgets(); unsubscribeBudgets = null; }
     features.stop();

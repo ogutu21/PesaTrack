@@ -6,6 +6,13 @@
 
     <meta name="theme-color" content="#0b2927">
 
+        <script>
+        /* Hide the app until the lock screen is ready, so nothing flashes before the PIN prompt. */
+        if (localStorage.getItem("pesatrack_lock_uid")) {
+            document.documentElement.classList.add("lock-pending");
+            setTimeout(function () { document.documentElement.classList.remove("lock-pending"); }, 6000);
+        }
+    </script>
     <title>PesaTrack</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -763,6 +770,15 @@
             </div>
 
         
+            <div class="card ingest-card" id="lockCard">
+                <div class="card-header">
+                    <div>
+                        <h3>App lock</h3>
+                        <p>Require a PIN or fingerprint to open PesaTrack.</p>
+                    </div>
+                </div>
+                <div id="lockBody"></div>
+            </div>
             <div class="card ingest-card">
                 <div class="card-header">
                     <div>

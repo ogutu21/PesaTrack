@@ -14,6 +14,7 @@
 
 - Customizable dashboard (show/hide cards) with insights: daily average, biggest expense, month-end forecast, "safe to spend today"
 - 39 built-in categories (28 expense, 12 income incl. Other) plus your own custom ones; dropdowns follow the transaction type
+- App lock: PIN plus fingerprint/face unlock (phone biometrics via WebAuthn), auto-lock, lockout after 5 wrong PINs
 - Savings goals with progress and a suggested monthly amount
 - Recurring transactions (weekly / monthly / yearly) that add themselves when due
 
