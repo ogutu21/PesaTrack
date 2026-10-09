@@ -10,8 +10,7 @@ const WIDGETS = [
     ["budgets", "Budget progress"],
     ["categories", "Top spending categories"],
     ["trend", "6-month trend"],
-    ["goals", "Savings goals"],
-    ["recurring", "Upcoming recurring payments"]
+    ["goals", "Savings goals"]
 ];
 const PREFS_KEY = "pesatrack_widgets";
 const FREQ = { weekly: "Weekly", monthly: "Monthly", yearly: "Yearly" };
@@ -304,7 +303,7 @@ export function initFeatures(c) {
         if (!rows.length) return c.emptyState("🎯", "No budgets yet", "Set limits under Reports → Edit budgets.");
         return `<div class="budget-list">${rows.map(([cat, limit]) => {
             const s = spent[cat] || 0, pct = (s / limit) * 100, level = pct >= 100 ? "over" : pct >= 80 ? "warn" : "ok";
-            return `<div class="budget-row ${level}"><div class="budget-top"><span>${c.getCategoryIcon(cat)} ${esc(cat)}</span><span>${pct.toFixed(0)}%</span></div>
+            return `<div class="budget-row ${level}"><div class="budget-top"><span><i class="cat-dot" style="background:${c.colorFor(cat)}"></i>${c.getCategoryIcon(cat)} ${esc(cat)}</span><span>${pct.toFixed(0)}%</span></div>
                 <div class="progress"><div class="progress-bar" style="width:${Math.min(pct, 100).toFixed(1)}%"></div></div>
                 <div class="budget-note">${c.formatCurrency(s)} of ${c.formatCurrency(limit)}</div></div>`;
         }).join("")}</div>`;
@@ -346,10 +345,10 @@ export function initFeatures(c) {
             card("budgets", "Budgets", "Month to date", budgetsHTML()),
             card("categories", "Top spending", "Biggest categories", categoriesHTML()),
             card("goals", "Savings goals", "Money you're setting aside", goalsHTML(), { action: `<button type="button" class="secondary-button" data-act="addGoal">+ Goal</button>` }),
-            card("recurring", "Coming up", "Scheduled payments and income", upcomingHTML(), { action: `<button type="button" class="secondary-button" data-act="manageRecurring">Manage</button>` }),
             card("trend", "Last 6 months", "Income versus expenses", trendWidgetHTML(), { wide: true })
         ].join("") || c.emptyState("🧩", "All cards are hidden", "Tap Customize to choose what to show.");
         postDue();
+        c.afterRender?.();
     }
 
     function customize() {
@@ -382,7 +381,7 @@ export function initFeatures(c) {
     c.$("manageCategories").addEventListener("click", manageCategories);
 
     return {
-        render,
+        render, upcomingHTML, manageRecurring,
         start(uid) {
             loaded.goals = loaded.recurring = false;
             unsubs = [

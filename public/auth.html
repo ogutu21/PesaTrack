@@ -9,7 +9,7 @@
 
     <title>PesaTrack - Sign In</title>
 
-    <meta name="theme-color" content="#0b2927">
+    <meta name="theme-color" content="#14110f">
     <link rel="icon" href="icons/icon-192.png">
     <link rel="manifest" href="manifest.json">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -17,14 +17,14 @@
     <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
         :root {
-            --ink: #0b2927; --primary: #0f6b63; --primary-dark: #0a4f49; --accent: #d9962b;
-            --bg: #f1f4f1; --surface: #ffffff; --text: #12201d; --muted: #5f6f6a; --border: #dfe6e2;
+            --ink: #14110f; --primary: #6d5df0; --primary-dark: #5648d6; --accent: #8b7cff;
+            --bg: #f5f3fa; --surface: #ffffff; --text: #1a1722; --muted: #6b6578; --border: #e4e0ee;
             --danger: #cf4a3c; --success: #1f8a58;
             --display: "Bricolage Grotesque", "DM Sans", system-ui, sans-serif;
             --body: "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
         }
         @media (prefers-color-scheme: dark) {
-            :root { --bg: #0c1615; --surface: #132320; --text: #e9f1ee; --muted: #93a8a2; --border: #23382f; --primary: #2fb3a5; --primary-dark: #249488; }
+            :root { --bg: #12100f; --surface: #1c1917; --text: #f6f3f0; --muted: #a8a09a; --border: #2f2927; --primary: #8b7cff; --primary-dark: #7566f0; }
         }
         * { box-sizing: border-box; margin: 0; padding: 0; }
         html { -webkit-text-size-adjust: 100%; }
@@ -39,11 +39,11 @@
         .brand { display: flex; align-items: center; gap: 14px; }
         .brand-icon { width: 46px; height: 46px; border-radius: 13px; background: var(--accent); display: grid; place-items: center; font-size: 24px; }
         .brand h1 { font-family: var(--display); font-size: 22px; letter-spacing: -0.01em; line-height: 1.1; }
-        .brand span { font-size: 13px; color: #8fb0a9; }
+        .brand span { font-size: 13px; color: #a39c97; }
         .hero-text h2 { font-family: var(--display); font-size: clamp(34px, 3.6vw, 54px); line-height: 1.04; letter-spacing: -0.03em; font-weight: 700; margin-bottom: 18px; }
-        .hero-text p { font-size: 17px; color: #a9c4be; max-width: 430px; }
+        .hero-text p { font-size: 17px; color: #bdb5af; max-width: 430px; }
         .features { display: flex; flex-direction: column; gap: 14px; }
-        .feature { display: flex; align-items: center; gap: 14px; font-size: 15px; color: #dbe9e5; }
+        .feature { display: flex; align-items: center; gap: 14px; font-size: 15px; color: #efebe8; }
         .feature-icon { width: 24px; height: 24px; flex: none; border-radius: 50%; border: 1.5px solid var(--accent); color: var(--accent); display: grid; place-items: center; font-size: 13px; font-weight: 700; }
 
         /* ---- right: form ---- */
@@ -57,7 +57,7 @@
         .input-wrapper { position: relative; }
         input { width: 100%; height: 48px; padding: 0 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg); color: var(--text); font-size: 15px; transition: border-color 0.15s, box-shadow 0.15s; }
         input::placeholder { color: var(--muted); opacity: 0.7; }
-        input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(15, 107, 99, 0.18); background: var(--surface); }
+        input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(124, 108, 246, 0.18); background: var(--surface); }
         .input-wrapper input { padding-right: 50px; }
         .password-toggle { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); width: 38px; height: 38px; border: none; background: none; cursor: pointer; font-size: 16px; border-radius: 8px; }
         .password-toggle:hover { background: var(--border); }

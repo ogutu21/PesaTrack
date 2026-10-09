@@ -2,6 +2,7 @@
 
 import { colorFor } from "./categories.js";
 
+let trendN = 0, sparkN = 0;
 const esc = v => String(v).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
 
 
@@ -41,6 +42,7 @@ export function donutHTML(entries, formatMoney) {
 export function trendHTML(months, formatShort, W = 360, H = 190) {
     const max = Math.max(...months.flatMap(m => [m.income, m.expense]), 0);
     if (!max) return "";
+    const uid = ++trendN;
     const top = 14, bottom = 26, left = 6, right = 6;
     const plotH = H - top - bottom;
     const slot = (W - left - right) / months.length;
@@ -52,9 +54,9 @@ export function trendHTML(months, formatShort, W = 360, H = 190) {
         const hi = h(m.income), he = h(m.expense);
         return `
             <g>
-                <rect class="bar-income" x="${(cx - barW - 1).toFixed(1)}" y="${(top + plotH - hi).toFixed(1)}" width="${barW.toFixed(1)}" height="${hi.toFixed(1)}" rx="3">
+                <rect class="bar-income" style="fill:url(#gi${uid})" x="${(cx - barW - 1).toFixed(1)}" y="${(top + plotH - hi).toFixed(1)}" width="${barW.toFixed(1)}" height="${hi.toFixed(1)}" rx="3">
                     <title>${esc(m.label)} income: ${esc(formatShort(m.income))}</title></rect>
-                <rect class="bar-expense" x="${(cx + 1).toFixed(1)}" y="${(top + plotH - he).toFixed(1)}" width="${barW.toFixed(1)}" height="${he.toFixed(1)}" rx="3">
+                <rect class="bar-expense" style="fill:url(#ge${uid})" x="${(cx + 1).toFixed(1)}" y="${(top + plotH - he).toFixed(1)}" width="${barW.toFixed(1)}" height="${he.toFixed(1)}" rx="3">
                     <title>${esc(m.label)} expenses: ${esc(formatShort(m.expense))}</title></rect>
                 <text class="chart-label" x="${cx.toFixed(1)}" y="${H - 8}" text-anchor="middle">${esc(m.label)}</text>
             </g>`;
@@ -62,6 +64,8 @@ export function trendHTML(months, formatShort, W = 360, H = 190) {
 
     return `
         <svg class="trend" viewBox="0 0 ${W} ${H}" role="img" aria-label="Income and expenses by month">
+            <defs><linearGradient id="gi${uid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3ddc97"/><stop offset="1" stop-color="#1f9d6a"/></linearGradient>
+            <linearGradient id="ge${uid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff7a70"/><stop offset="1" stop-color="#d6483c"/></linearGradient></defs>
             <line class="chart-axis" x1="${left}" x2="${W - right}" y1="${top + plotH}" y2="${top + plotH}"></line>
             <text class="chart-label" x="${left}" y="${top - 3}">${esc(formatShort(max))}</text>
             ${bars}
@@ -70,4 +74,20 @@ export function trendHTML(months, formatShort, W = 360, H = 190) {
             <span><i class="dot income-dot"></i> Income</span>
             <span><i class="dot expense-dot"></i> Expenses</span>
         </div>`;
+}
+
+// A small glowing area chart for stat cards.
+export function sparkHTML(values, color = "#a99bff") {
+    if (!values || values.length < 2) return "";
+    const W = 200, H = 60, pad = 4, n = values.length;
+    const min = Math.min(...values), max = Math.max(...values), span = max - min || 1;
+    const pts = values.map((v, i) => [pad + ((W - 2 * pad) * i) / (n - 1), pad + (H - 2 * pad) * (1 - (v - min) / span) * 0.85 + 6]);
+    const f = x => x.toFixed(1);
+    const line = pts.map(([x, y], i, a) => i ? `C${f((a[i - 1][0] + x) / 2)} ${f(a[i - 1][1])} ${f((a[i - 1][0] + x) / 2)} ${f(y)} ${f(x)} ${f(y)}` : `M${f(x)} ${f(y)}`).join(" ");
+    const area = `${line} L${f(pts[n - 1][0])} ${H} L${f(pts[0][0])} ${H} Z`;
+    const id = `sp${++sparkN}`;
+    return `<svg class="spark-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
+        <defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${color}" stop-opacity="0.42"/><stop offset="1" stop-color="${color}" stop-opacity="0"/></linearGradient></defs>
+        <path d="${area}" fill="url(#${id})"/>
+        <path class="spark-line" d="${line}" fill="none" stroke="${color}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" pathLength="1" vector-effect="non-scaling-stroke"/></svg>`;
 }

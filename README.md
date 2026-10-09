@@ -14,6 +14,8 @@
 
 - Customizable dashboard (show/hide cards) with insights: daily average, biggest expense, month-end forecast, "safe to spend today"
 - 39 built-in categories (28 expense, 12 income incl. Other) plus your own custom ones; dropdowns follow the transaction type
+- Coinly-inspired look: warm charcoal dark theme (default) and a light theme, glowing sparklines on stat cards, Income / Spent / Left tiles, Activity tabs (Recent | Coming up)
+- Motion: count-up numbers, bars and charts that grow in, staggered entrance, page transitions (all off when the device asks for reduced motion)
 - Tags and notes on transactions, with search and tag filters
 - Multi-currency: add a transaction in USD, EUR, etc.; it is converted to your main currency and the original is kept
 - One-page summary report: print / save as PDF, share or copy as text
