@@ -1,5 +1,5 @@
 // Offline-capable app shell. Bump VERSION when you add files to SHELL.
-const VERSION = "pesatrack-v13";
+const VERSION = "pesatrack-v14";
 const SHELL = [
     "/", "/index.html", "/auth.html", "/style.css", "/script.js",
     "/firestore.js", "/firebase-config.js", "/mpesa.js", "/charts.js", "/features.js", "/categories.js", "/applock.js", "/currency.js", "/report.js", "/backup.js", "/household.js", "/recurrence.js", "/manifest.json",

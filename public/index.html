@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 
-    <meta name="theme-color" content="#0b2927">
+    <meta name="theme-color" content="#12100f">
 
         <script>
         /* Hide the app until the lock screen is ready, so nothing flashes before the PIN prompt. */
@@ -12,6 +12,10 @@
             document.documentElement.classList.add("lock-pending");
             setTimeout(function () { document.documentElement.classList.remove("lock-pending"); }, 6000);
         }
+    </script>
+    <script>
+        /* Dark is the default look: apply it before the page paints to avoid a flash. */
+        if (localStorage.getItem("pesatrack_theme") !== "light") document.documentElement.classList.add("dark");
     </script>
     <title>PesaTrack</title>
 
@@ -166,7 +170,7 @@
                     <div class="summary-icon">📈</div>
 
                     <div>
-                        <span>Total Income</span>
+                        <span>Income</span>
                         <h3 id="incomeAmount">KES 0.00</h3>
                     </div>
 
@@ -178,7 +182,7 @@
                     <div class="summary-icon">📉</div>
 
                     <div>
-                        <span>Total Expenses</span>
+                        <span>Spent</span>
                         <h3 id="expenseAmount">KES 0.00</h3>
                     </div>
 
@@ -345,22 +349,21 @@
 
                     <div class="card-header">
 
-                        <div>
-                            <h3>Recent Transactions</h3>
-                            <p>Your latest financial activity.</p>
-                        </div>
+                        <div><h3>Activity</h3><div class="tabs" role="tablist"><button type="button" class="tab active" data-tab="recent" role="tab">Recent</button><button type="button" class="tab" data-tab="upcoming" role="tab">Coming up</button></div></div>
 
-                        <button
+                        <button id="viewAllButton"
                             class="text-button"
                             data-section-link="transactions"
                         >
                             View All
                         </button>
+                    <button type="button" class="link-button" id="manageUpcoming" hidden>Manage</button>
 
                     </div>
 
 
-                    <div id="recentTransactions" class="transaction-list">
+                    <div id="upcomingList" class="transaction-list" hidden></div>
+                <div id="recentTransactions" class="transaction-list">
 
                         <div class="empty-state">
                             <div class="empty-icon">💳</div>

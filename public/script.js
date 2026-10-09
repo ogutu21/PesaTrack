@@ -9,9 +9,9 @@ import {
     useRoot, subscribeCurrency, saveCurrency, normalizeTags
 } from "./firestore.js";
 import { parseMpesa } from "./mpesa.js";
-import { donutHTML, trendHTML } from "./charts.js";
+import { donutHTML, trendHTML, sparkHTML } from "./charts.js";
 import { initFeatures } from "./features.js";
-import { iconFor, categoriesFor, fillSelect, fillFilter } from "./categories.js";
+import { iconFor, colorFor, categoriesFor, fillSelect, fillFilter } from "./categories.js";
 import { initAppLock } from "./applock.js";
 import { CURRENCIES, getBase, getRates, setCurrencySettings, formatMoney, formatIn, convert } from "./currency.js";
 import { initReport } from "./report.js";
@@ -119,7 +119,24 @@ fillSelect($("editCategory"), $("editType").value, "");
 fillFilter($("categoryFilter"));
 
 // ---------- navigation ----------
+var uiReady = false;   // var: used by openSection before later declarations run
+
+function playEntrance(root = document.querySelector(".page-section.active")) {
+    if (!root || reduceMotion()) return;
+    root.querySelectorAll(".summary-card, .card, .transaction-item, .budget-row, .stat-tile")
+        .forEach((el, i) => el.style.setProperty("--i", Math.min(i, 14)));
+    root.classList.remove("enter"); void root.offsetWidth; root.classList.add("enter");
+    clearTimeout(root._enterTimer);
+    root._enterTimer = setTimeout(() => root.classList.remove("enter"), 2200);
+}
+
 function openSection(name, push = true) {
+    const run = () => { applySection(name, push); playEntrance(); };
+    if (uiReady && document.startViewTransition && !reduceMotion()) document.startViewTransition(run);
+    else run();
+}
+
+function applySection(name, push) {
     pageSections.forEach(s => s.classList.remove("active"));
     $(name)?.classList.add("active");
     [...navItems, ...mobileNavItems].forEach(i => i.classList.toggle("active", i.dataset.section === name));
@@ -217,12 +234,54 @@ function savingsText(rate) {
     return `${rate.toFixed(1)}%`;
 }
 
+function reduceMotion() { return matchMedia("(prefers-reduced-motion: reduce)").matches; }
+
+// Numbers count up to their new value (instantly if the person prefers reduced motion).
+function setAmount(el, to, fmt) {
+    const from = el._v ?? 0;
+    el._v = to;
+    cancelAnimationFrame(el._raf);
+    if (reduceMotion() || from === to) { el.textContent = fmt(to); return; }
+    const t0 = performance.now();
+    const step = now => {
+        const k = Math.min(1, (now - t0) / 650), e = 1 - Math.pow(1 - k, 3);
+        el.textContent = fmt(from + (to - from) * e);
+        if (k < 1) el._raf = requestAnimationFrame(step); else el.textContent = fmt(to);
+    };
+    el._raf = requestAnimationFrame(step);
+}
+
+function monthSeries(pick) {
+    const base = budgetMonth();
+    return Array.from({ length: 6 }, (_, i) => pick(totalsFor(inMonth(shiftMonth(base, i - 5)))));
+}
+function setSpark(amountId, cls, values, color) {
+    const card = $(amountId).closest(".summary-card");
+    if (cls) card.classList.add(cls);
+    let el = card.querySelector(".spark");
+    if (!el) { el = document.createElement("div"); el.className = "spark"; card.append(el); }
+    el.innerHTML = sparkHTML(values, color);
+}
+
 function updateDashboard() {
     const t = calculateTotals();
-    $("balanceAmount").textContent = formatCurrency(t.balance);
-    $("incomeAmount").textContent = formatCurrency(t.income);
-    $("expenseAmount").textContent = formatCurrency(t.expenses);
-    $("savingsRate").textContent = savingsText(t.savingsRate);
+    setAmount($("balanceAmount"), t.balance, formatCurrency);
+    setAmount($("incomeAmount"), t.income, formatCurrency);
+    setAmount($("expenseAmount"), t.expenses, formatCurrency);
+    // Third tile: what is left in your budgets, or the savings rate if you have none.
+    const limits = activeBudgets(), label = $("savingsRate").previousElementSibling;
+    if (limits.length) {
+        const spent = spentByCategory(budgetMonth());
+        const left = limits.reduce((s, [, l]) => s + l, 0) - limits.reduce((s, [cat]) => s + (spent[cat] || 0), 0);
+        label.textContent = "Left in budgets";
+        setAmount($("savingsRate"), left, formatCurrency);
+    } else {
+        label.textContent = "Savings rate";
+        setAmount($("savingsRate"), t.savingsRate, savingsText);
+    }
+    setSpark("balanceAmount", "", monthSeries(x => x.balance), "#a99bff");
+    setSpark("incomeAmount", "income-card", monthSeries(x => x.income), "#3ddc97");
+    setSpark("expenseAmount", "expense-card", monthSeries(x => x.expenses), "#ff7a70");
 }
 
 // ---------- transaction lists ----------
@@ -298,6 +357,21 @@ function renderTransactions() {
 
 ["searchInput"].forEach(id => $(id).addEventListener("input", renderTransactions));
 ["typeFilter", "categoryFilter", "tagFilter", "sortFilter"].forEach(id => $(id).addEventListener("change", renderTransactions));
+
+let dashTab = "recent";
+function renderDashTab() {
+    document.querySelectorAll(".tab").forEach(b => b.classList.toggle("active", b.dataset.tab === dashTab));
+    $("recentTransactions").hidden = dashTab !== "recent";
+    $("upcomingList").hidden = dashTab !== "upcoming";
+    $("viewAllButton").hidden = dashTab !== "recent";
+    $("manageUpcoming").hidden = dashTab !== "upcoming";
+    if (dashTab === "upcoming") $("upcomingList").innerHTML = features.upcomingHTML();
+}
+document.addEventListener("click", e => {
+    const tab = e.target.closest(".tab");
+    if (tab) { dashTab = tab.dataset.tab; renderDashTab(); }
+});
+$("manageUpcoming").addEventListener("click", () => features.manageRecurring());
 
 function renderTagFilter() {
     const sel = $("tagFilter"), keep = sel.value || "all";
@@ -421,7 +495,9 @@ function renderReports() {
 
 // ---------- theme ----------
 function applyTheme() {
-    const dark = localStorage.getItem("pesatrack_theme") === "dark";
+    const saved = localStorage.getItem("pesatrack_theme");
+    const dark = saved ? saved === "dark" : true;
+    document.documentElement.classList.toggle("dark", dark);
     document.body.classList.toggle("dark", dark);
     $("themeButton").textContent = dark ? "☀️" : "🌙";
     $("settingsThemeButton").textContent = dark ? "☀️ Light Mode" : "🌙 Dark Mode";
@@ -459,7 +535,7 @@ function renderMonthBar() {
     $("allTimeButton").textContent = all ? "Back to month view" : "All time";
     $("allTimeButton").classList.toggle("active", all);
 }
-function setMonth(value) { monthDecided = true; selectedMonth = value; renderAll(); }
+function setMonth(value) { monthDecided = true; selectedMonth = value; renderAll(); playEntrance(); }
 $("prevMonth").addEventListener("click", () => setMonth(shiftMonth(selectedMonth, -1)));
 $("nextMonth").addEventListener("click", () => setMonth(shiftMonth(selectedMonth, 1)));
 $("allTimeButton").addEventListener("click", () => setMonth(selectedMonth === "all" ? currentMonthKey() : "all"));
@@ -502,7 +578,7 @@ function renderBudgets() {
         return `
             <div class="budget-row ${level}">
                 <div class="budget-top">
-                    <span>${getCategoryIcon(cat)} ${escapeHTML(cat)}</span>
+                    <span><i class="cat-dot" style="background:${colorFor(cat)}"></i>${getCategoryIcon(cat)} ${escapeHTML(cat)}</span>
                     <span>${formatCurrency(s)} of ${formatCurrency(limit)}</span>
                 </div>
                 <div class="progress"><div class="progress-bar" style="width:${Math.min(pct, 100).toFixed(1)}%"></div></div>
@@ -768,7 +844,7 @@ document.querySelectorAll("[data-open-mpesa]").forEach(b => b.addEventListener("
 const features = initFeatures({
     $, toast, confirmDialog, openOverlay, escapeHTML, formatCurrency, formatDate, getCategoryIcon, emptyState,
     localToday, shiftMonth, totalsFor, inMonth, spentByCategory, budgetMonth, importTransactions, reportWriteError,
-    newId, categoriesFor, fillSelect, onCategoriesChanged: () => refreshCategoryUI(), getUser: () => currentUser, getVisible: visible, getMonth: () => selectedMonth, getBudgets: () => budgets
+    newId, colorFor, afterRender: renderDashTab, categoriesFor, fillSelect, onCategoriesChanged: () => refreshCategoryUI(), getUser: () => currentUser, getVisible: visible, getMonth: () => selectedMonth, getBudgets: () => budgets
 });
 
 // ---------- app lock (PIN / fingerprint) ----------
@@ -802,8 +878,9 @@ async function migrateLocalData(uid) {
 }
 
 function renderAll() {
-    renderMonthBar();
+        renderMonthBar();
     renderTagFilter();
+    renderDashTab();
     updateDashboard();
     renderRecentTransactions();
     renderTransactions();
@@ -923,9 +1000,10 @@ function switchWorkspace(id, name) {
     workspace = id ? { id, name: name || "Household" } : { id: null, name: "Personal" };
     localStorage.setItem(wsKey(currentUser.uid), id || "personal");
     monthDecided = false; selectedMonth = currentMonthKey();
-    startData();
+        startData();
     household.refresh();
     updateWorkspaceUI();
+    playEntrance();
 }
 
 const household = initHousehold({ $, toast, confirmDialog, openOverlay, escapeHTML, getUser: () => currentUser, getWorkspace: () => workspace, switchWorkspace });
@@ -946,8 +1024,10 @@ onAuthStateChanged(auth, user => {
     updateUserInformation();
     workspace = { id: null, name: "Personal" };
     household.onUser(user);      // loads your households; reopens the one you were last using
-    startData();
+        startData();
     updateWorkspaceUI();
+    uiReady = true;
+    playEntrance();
 });
 
 async function logout() {
