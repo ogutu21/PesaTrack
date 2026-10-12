@@ -17,6 +17,8 @@ import { CURRENCIES, getBase, getRates, setCurrencySettings, formatMoney, format
 import { initReport } from "./report.js";
 import { initBackup } from "./backup.js";
 import { initHousehold } from "./household.js";
+import { initMpesaImport } from "./mpesaimport.js";
+import { initAutoImport } from "./autoimport.js";
 
 let transactions = [];
 let currentUser = null;
@@ -728,116 +730,17 @@ document.querySelectorAll("[data-export-csv]").forEach(b => b.addEventListener("
 // =====================================================
 // M-PESA IMPORT
 // =====================================================
-function openMpesaImport(prefill = "") {
-    if (!currentUser) return;
-    const { overlay, close } = openOverlay(`
-        <h3>Import from M-Pesa</h3>
-        <p class="confirm-text">Paste one or more M-Pesa confirmation messages. You can review everything before it's saved.</p>
-        <textarea id="mpesaText" rows="6" placeholder="QGH7A1B2C3 Confirmed. Ksh500.00 sent to JOHN DOE 0712345678 on 17/7/24 at 2:15 PM..."></textarea>
-        <div class="modal-actions">
-            <button type="button" class="secondary-button" data-close>Close</button>
-            <button type="button" class="secondary-button" id="mpesaPaste">📋 Paste</button>
-            <button type="button" class="primary-button" id="mpesaParse">Read messages</button>
-        </div>
-        <div id="mpesaResult"></div>`, true);
-
-    const catOptions = it => {
-        const names = categoriesFor(it.type).map(c => c.name);
-        if (!names.includes(it.category)) names.unshift(it.category);
-        return names.map(n => `<option value="${escapeHTML(n)}" ${n === it.category ? "selected" : ""}>${getCategoryIcon(n)} ${escapeHTML(n)}</option>`).join("");
-    };
-    let parsed = { items: [], skipped: [] };
-    const existing = new Set(transactions.map(t => t.id));
-
-    function renderResult() {
-        const { items, skipped } = parsed;
-        const box = overlay.querySelector("#mpesaResult");
-        if (!items.length) {
-            box.innerHTML = `<p class="mp-note">No transactions found. Make sure you copied the full message, starting with the transaction code (like QGH7A1B2C3).${
-                skipped.length ? ` ${skipped.length} message(s) were skipped (${[...new Set(skipped.map(s => s.reason))].join(", ")}).` : ""}</p>`;
-            return;
-        }
-        const picked = items.filter(i => i.selected);
-        const fees = picked.reduce((s, i) => s + (i.fee || 0), 0);
-        box.innerHTML = `
-            <div class="mp-list">
-                ${items.map((it, i) => `
-                    <label class="mp-row ${it.dup ? "dup" : ""}">
-                        <input type="checkbox" data-sel="${i}" ${it.selected ? "checked" : ""} ${it.dup ? "disabled" : ""}>
-                        <div class="mp-main"><strong>${escapeHTML(it.description)}</strong>
-                            <small>${formatDate(it.date)}${it.dup ? " · already added" : ""}</small></div>
-                        <select data-cat="${i}" ${it.dup ? "disabled" : ""}>
-                            ${catOptions(it)}
-                        </select>
-                        <span class="mp-amt ${it.type}">${it.type === "income" ? "+" : "-"}${formatCurrency(it.amount)}</span>
-                    </label>`).join("")}
-            </div>
-            ${items.some(i => i.fee > 0) ? `
-                <label class="mp-fee"><input type="checkbox" id="mpesaFees" ${parsed.fees ? "checked" : ""}>
-                    Also record M-Pesa transaction fees as expenses (${formatCurrency(fees)})</label>` : ""}
-            ${skipped.length ? `<p class="mp-note">${skipped.length} message(s) skipped: ${[...new Set(skipped.map(s => s.reason))].join(", ")}.</p>` : ""}
-            <div class="modal-actions">
-                <button type="button" class="primary-button" id="mpesaImport" ${picked.length ? "" : "disabled"}>
-                    Import ${picked.length} transaction${picked.length === 1 ? "" : "s"}</button>
-            </div>`;
+// M-Pesa import (paste, share, or a backup file) lives in mpesaimport.js
+function showMonthFor(dates) {   // make sure freshly imported transactions are visible
+    if (selectedMonth !== "all" && dates.length && !dates.some(d => monthKey(d) === selectedMonth)) {
+        selectedMonth = monthKey([...dates].sort().pop());
+        renderAll();
     }
-
-    overlay.querySelector("#mpesaParse").addEventListener("click", () => {
-        const result = parseMpesa(overlay.querySelector("#mpesaText").value);
-        parsed = {
-            skipped: result.skipped, fees: true,
-            items: result.items.map(it => ({ ...it, dup: existing.has(it.id), selected: !existing.has(it.id) }))
-        };
-        renderResult();
-    });
-
-    overlay.querySelector("#mpesaPaste").addEventListener("click", async () => {
-        try {
-            const text = await navigator.clipboard.readText();
-            if (!text.trim()) return toast("Your clipboard is empty. Copy an M-Pesa message first.");
-            overlay.querySelector("#mpesaText").value = text;
-            overlay.querySelector("#mpesaParse").click();
-        } catch {
-            toast("Couldn't read the clipboard. Paste into the box instead.");
-        }
-    });
-
-    if (prefill) {
-        overlay.querySelector("#mpesaText").value = prefill;
-        overlay.querySelector("#mpesaParse").click();
-    }
-
-    overlay.addEventListener("change", e => {
-        if (e.target.dataset.sel !== undefined) parsed.items[e.target.dataset.sel].selected = e.target.checked;
-        if (e.target.dataset.cat !== undefined) parsed.items[e.target.dataset.cat].category = e.target.value;
-        if (e.target.id === "mpesaFees") parsed.fees = e.target.checked;
-        if (e.target.dataset.sel !== undefined) renderResult();
-    });
-
-    overlay.addEventListener("click", e => {
-        if (e.target.id !== "mpesaImport") return;
-        const now = new Date().toISOString();
-        const txs = [];
-        parsed.items.filter(i => i.selected).forEach(i => {
-            txs.push({ id: i.id, description: i.description, amount: i.amount, type: i.type,
-                category: i.category, date: i.date, createdAt: now });
-            if (parsed.fees && i.fee > 0 && !existing.has(`${i.id}-fee`)) {
-                txs.push({ id: `${i.id}-fee`, description: `M-Pesa fee (${i.code || "SMS"})`, amount: i.fee,
-                    type: "expense", category: "Fees & Charges", date: i.date, createdAt: now });
-            }
-        });
-        if (!txs.length) return;
-        importTransactions(currentUser.uid, txs).catch(reportWriteError);
-
-        // Make sure the imported transactions are visible.
-        if (selectedMonth !== "all" && !txs.some(t => monthKey(t.date) === selectedMonth)) {
-            selectedMonth = monthKey(txs.map(t => t.date).sort().pop());
-        }
-        close();
-        toast(`Imported ${txs.length} transaction${txs.length === 1 ? "" : "s"} from M-Pesa`, "success");
-    });
 }
-document.querySelectorAll("[data-open-mpesa]").forEach(b => b.addEventListener("click", openMpesaImport));
+const mpesaImport = initMpesaImport({ escapeHTML, formatCurrency, formatDate, getCategoryIcon, categoriesFor, openOverlay, toast,
+    getUser: () => currentUser, getTransactions: () => transactions, importTransactions, reportWriteError, showMonthFor });
+function openMpesaImport(prefill = "") { mpesaImport.open(prefill); }
+document.querySelectorAll("[data-open-mpesa]").forEach(b => b.addEventListener("click", () => openMpesaImport()));
 
 
 // ---------- dashboard widgets, goals, recurring ----------
@@ -1013,8 +916,11 @@ initReport({ escapeHTML, formatCurrency, formatDate, getCategoryIcon, toast, ope
 initBackup({ $, toast, confirmDialog, openOverlay, escapeHTML, localToday, getTransactions: () => transactions, getBudgets: () => budgets,
     getFeatureData: () => features.getData(), getUser: () => currentUser, workspaceName: () => workspace.name });
 
+const autoImport = initAutoImport({ $, toast, confirmDialog, escapeHTML, reportWriteError, inHousehold: () => !!workspace.id });
+
 onAuthStateChanged(auth, user => {
     appLock.onUser(user);
+    autoImport.onUser(user);
     stopData();
     if (!user) {
         window.location.href = "auth.html";

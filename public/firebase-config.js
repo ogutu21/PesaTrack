@@ -7,7 +7,7 @@ import {
     persistentMultipleTabManager
 } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
 
-const firebaseConfig = {
+export const firebaseConfig = {
     apiKey: "AIzaSyATQU2_8h29Ki8rF-AaPb3cQ7RyD3HLLCw",
     authDomain: "pesatrack-92632.firebaseapp.com",
     databaseURL: "https://pesatrack-92632-default-rtdb.europe-west1.firebasedatabase.app",

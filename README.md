@@ -16,6 +16,8 @@
 - 39 built-in categories (28 expense, 12 income incl. Other) plus your own custom ones; dropdowns follow the transaction type
 - Coinly-inspired look: warm charcoal dark theme (default) and a light theme, glowing sparklines on stat cards, Income / Spent / Left tiles, Activity tabs (Recent | Coming up)
 - Motion: count-up numbers, bars and charts that grow in, staggered entrance, page transitions (all off when the device asks for reduced motion)
+- Import your old M-Pesa messages from an SMS Backup & Restore file (or JSON/CSV/text), thousands at a time, with a review step
+- Automatic M-Pesa on the free plan: the phone forwards each new message to a private inbox; the app adds it as income or an expense
 - Tags and notes on transactions, with search and tag filters
 - Multi-currency: add a transaction in USD, EUR, etc.; it is converted to your main currency and the original is kept
 - One-page summary report: print / save as PDF, share or copy as text
@@ -60,3 +62,15 @@ The household security rules cannot be tested offline, so check them with two ac
 4. A: "New code", then try the OLD code from B. It must be rejected.
 5. Check that B's personal space never shows A's personal data.
 If any step fails, personal data is unaffected: only the household feature uses the new rules.
+
+## Importing old M-Pesa messages
+Android: install "SMS Backup & Restore", back up as XML, then Import M-Pesa -> From a file.
+Any phone: copy messages and use Import M-Pesa -> Paste.
+
+## Automatic M-Pesa (free plan, no Cloud Functions)
+Settings -> Automatic M-Pesa -> Turn on. Follow the MacroDroid (Android) or Shortcuts (iPhone) guide shown there.
+How it works: the phone sends the SMS text to your private inbox in Firestore using the public REST API and a secret key;
+the security rules accept a write only when it carries the current secret. PesaTrack reads the inbox when it is open,
+creates the transactions in your PERSONAL space, and deletes the inbox items.
+These rules cannot be tested offline. After `firebase deploy`, test from your computer with the PowerShell command in the
+"Test it from your computer first" section of the card before configuring the phone.

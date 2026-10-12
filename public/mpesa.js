@@ -126,7 +126,7 @@ export function parseMpesa(text) {
     const items = [], skipped = [], seen = new Set();
     for (const msg of splitMessages(String(text || ""))) {
         const r = parseOne(msg);
-        if (r.skip) skipped.push({ reason: r.skip, text: msg.body.slice(0, 80) });
+        if (r.skip) skipped.push({ reason: r.skip, text: msg.body.slice(0, 220) });
         else if (!seen.has(r.item.id)) { seen.add(r.item.id); items.push(r.item); }
     }
     return { items, skipped };

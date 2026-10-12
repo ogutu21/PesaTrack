@@ -42,6 +42,32 @@ service cloud.firestore {
         && validSetting(docId, request.resource.data);
     }
 
+    // ---------- automatic M-Pesa (free plan, no server) ----------
+    // The ingest key is a secret the user's phone includes when it drops a message into the inbox.
+    match /users/{userId}/private/{docId} {
+      allow read, delete: if request.auth != null && request.auth.uid == userId;
+      allow create, update: if request.auth != null && request.auth.uid == userId
+        && docId == 'ingest'
+        && request.resource.data.keys().hasOnly(['secret', 'recordFees', 'createdAt'])
+        && request.resource.data.secret is string
+        && request.resource.data.secret.size() >= 32 && request.resource.data.secret.size() <= 128
+        && request.resource.data.get('recordFees', true) is bool;
+    }
+
+    match /users/{userId}/inbox/{itemId} {
+      // Only the owner can read or clear it.
+      allow read, delete: if request.auth != null && request.auth.uid == userId;
+      // The phone can add a message (no sign-in) only by presenting the current secret.
+      allow create: if request.resource.data.keys().hasOnly(['secret', 'text'])
+        && request.resource.data.text is string
+        && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 3000
+        && request.resource.data.secret is string
+        && exists(/databases/$(database)/documents/users/$(userId)/private/ingest)
+        && request.resource.data.secret
+             == get(/databases/$(database)/documents/users/$(userId)/private/ingest).data.secret;
+      allow update: if false;
+    }
+
     // ---------- shared households ----------
     function isMember(hid) {
       return request.auth != null

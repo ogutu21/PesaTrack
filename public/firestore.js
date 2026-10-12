@@ -117,3 +117,19 @@ export const joinHousehold = (uid, hid, secret, displayName) =>
     updateDoc(hhDoc(hid), { [`members.${uid}`]: { name: displayName, role: "member", joinedAt: iso() }, joinSecret: secret });
 export const removeHouseholdMember = (hid, memberUid) => updateDoc(hhDoc(hid), { [`members.${memberUid}`]: deleteField() });
 export const rotateInvite = hid => updateDoc(hhDoc(hid), { inviteSecret: rand(12), joinSecret: deleteField() });
+
+// ---------- automatic M-Pesa: the phone drops raw messages into an inbox; the app turns them into transactions ----------
+const ingestDoc = uid => doc(db, ...personal(uid), "private", "ingest");
+export const subscribeIngestKey = (uid, onData, onError) =>
+    onSnapshot(ingestDoc(uid), snap => onData(snap.exists() ? snap.data() : null), onError);
+export const saveIngestKey = (uid, data) => setDoc(ingestDoc(uid), { ...data, createdAt: iso() });
+export const deleteIngestKey = uid => deleteDoc(ingestDoc(uid));
+
+export const subscribeInbox = (uid, onData, onError) =>
+    onSnapshot(collection(db, ...personal(uid), "inbox"), snap => onData(snap.docs.map(d => ({ id: d.id, ...d.data() }))), onError);
+export const deleteInboxItem = (uid, id) => deleteDoc(doc(db, ...personal(uid), "inbox", String(id)));
+
+// Always writes to the user's own space, even while a household is open.
+export function importPersonalTransactions(uid, list) {
+    return batchedWrite(list, (batch, tx) => { const data = clean(tx); batch.set(doc(db, ...personal(uid), "transactions", data.id), data); });
+}
