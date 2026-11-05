@@ -23,6 +23,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="refine.css">
     <link rel="manifest" href="manifest.json">
     <link rel="icon" href="icons/icon-192.png">
     <link rel="apple-touch-icon" href="icons/icon-192.png">
@@ -146,7 +147,7 @@
                 </div>
 
             </div>
-            <div id="budgetBanner" class="budget-banner" hidden></div>
+            <section id="attention" class="attention" aria-label="Needs your attention" hidden></section>
 
 
             <!-- SUMMARY -->
@@ -215,7 +216,7 @@
 
                 <!-- ADD TRANSACTION -->
 
-                <div class="card">
+                <div class="card quick-add" id="quickAddCard">
 
                     <div class="card-header">
 
@@ -371,7 +372,7 @@
                             <h3>No transactions yet</h3>
 
                             <p>
-                                Add your first transaction above.
+                                Add your first transaction to get started.
                             </p>
                         </div>
 
@@ -1002,6 +1003,9 @@
 
 </div>
 
+
+<button type="button" id="fabAdd" class="fab" aria-label="Add transaction">+</button>
+<div id="sheetBackdrop" class="sheet-backdrop" hidden></div>
 
 <!-- MOBILE NAVIGATION -->
 

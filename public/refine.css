@@ -1,0 +1,114 @@
+/* =====================================================
+   PesaTrack refinements. Loaded AFTER style.css.
+   Each numbered block is independent: delete one to undo that step.
+===================================================== */
+
+/* ---------- 1. Calmer look: keep the glow on the balance card only ---------- */
+.donut,
+.bar-income,
+.bar-expense,
+.spark-line { filter: none; }
+.primary-button,
+.primary-button:hover { box-shadow: none; }
+.income-card .spark,
+.expense-card .spark { opacity: 0.55; }
+
+
+/* ---------- 2. Sync status stays visible on phones (as a dot) ---------- */
+@media (max-width: 550px) {
+    .sync-status {
+        display: inline-block;
+        width: 12px; height: 12px; padding: 0; flex: none;
+        font-size: 0; line-height: 0; overflow: hidden;
+        border-radius: 50%; background: #9ca3af;
+    }
+    .sync-status.online { background: var(--income); }
+    /* hollow ring when offline, so it isn't colour alone */
+    .sync-status.offline { background: transparent; border: 2px solid #d97706; }
+}
+
+
+/* ---------- 3. Quick-add: floating + button and bottom sheet (phones) ---------- */
+.fab, .sheet-backdrop, .sheet-close { display: none; }
+
+@keyframes sheet-up { from { transform: translateY(100%); } to { transform: none; } }
+
+@media (max-width: 800px) {
+    .fab {
+        display: grid; place-items: center;
+        position: fixed; right: 16px; bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+        width: 56px; height: 56px; border: none; border-radius: 50%;
+        background: linear-gradient(135deg, #7c5cff, #5b4bd5); color: #fff;
+        font-size: 30px; line-height: 1; cursor: pointer; z-index: 250;
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+    }
+    .fab:active { transform: scale(0.94); }
+    body.sheet-lock .fab, body.lock-open .fab { display: none; }
+
+    .sheet-backdrop { display: block; position: fixed; inset: 0; z-index: 390; background: rgba(0, 0, 0, 0.55); }
+    body.sheet-lock { overflow: hidden; }
+
+    /* the inline form is replaced by the sheet on phones */
+    .quick-add:not(.sheet-open) { display: none; }
+    .quick-add.sheet-open {
+        display: block; position: fixed; left: 0; right: 0; bottom: 0; z-index: 400;
+        max-height: 90vh; max-height: 90dvh; overflow-y: auto;
+        border-radius: 20px 20px 0 0; border-bottom: none;
+        padding: 22px 16px calc(20px + env(safe-area-inset-bottom, 0px));
+        animation: sheet-up 0.25s ease-out;
+    }
+    .quick-add.sheet-open::before {
+        content: ""; display: block; width: 40px; height: 4px; border-radius: 2px;
+        background: var(--border); margin: -10px auto 14px;
+    }
+    .quick-add input, .quick-add select { font-size: 16px; }   /* stops iOS zooming in */
+    .sheet-close {
+        display: grid; place-items: center; position: absolute; top: 8px; right: 8px;
+        width: 44px; height: 44px; border: none; border-radius: 50%;
+        background: transparent; color: var(--muted); font-size: 26px; cursor: pointer;
+    }
+}
+
+
+/* ---------- 4. "Needs your attention" strip ---------- */
+.attention { display: flex; flex-direction: column; gap: 8px; margin: 0 0 22px; }
+.attention[hidden] { display: none; }
+.attention-head { font-size: 12px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); }
+.attention-list { display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+.att-item {
+    display: flex; align-items: center; gap: 12px; width: 100%; min-height: 52px;
+    padding: 10px 14px; text-align: left; cursor: pointer;
+    border: 1px solid var(--border); border-left-width: 4px; border-radius: 10px;
+    background: var(--surface); color: var(--text); font: inherit;
+}
+.att-item:hover { border-color: var(--accent); }
+.att-item.over { border-left-color: var(--expense); }
+.att-item.warn { border-left-color: #d97706; }
+.att-item.info { border-left-color: var(--accent); }
+.att-icon { font-size: 18px; flex: none; }
+.att-text { min-width: 0; }
+.att-text strong { display: block; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.att-text span { display: block; font-size: 12px; color: var(--muted); }
+
+
+/* ---------- 5. Accessibility: not colour alone, bigger touch targets ---------- */
+/* Over-budget bars get diagonal stripes in addition to the red. */
+.budget-row.over .progress-bar {
+    background-image:
+        repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0 6px, transparent 6px 12px),
+        linear-gradient(90deg, #d6483c, #ff7a70);
+}
+.budget-row.warn .progress-bar {
+    background-image:
+        repeating-linear-gradient(135deg, rgba(0, 0, 0, 0.16) 0 3px, transparent 3px 9px),
+        linear-gradient(90deg, #d97706, #fbbf24);
+}
+
+@media (max-width: 800px) {
+    .transaction-actions { gap: 4px; }
+    .transaction-actions button { min-height: 40px; padding: 6px 10px; font-size: 13px; }
+    .month-btn { width: 44px; height: 44px; }
+    .tab { min-height: 40px; }
+    .tag-chip { padding: 5px 10px; }
+    .link-button { min-height: 40px; }
+}

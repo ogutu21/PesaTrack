@@ -4,47 +4,15 @@
     padding: 0;
 }
 
-:root {
-    --primary: #4f46e5;
-    --primary-dark: #3730a3;
-
-    --background: #f4f7fb;
-    --surface: #ffffff;
-
-    --text: #111827;
-    --muted: #6b7280;
-
-    --border: #e5e7eb;
-
-    --income: #16a34a;
-    --expense: #dc2626;
-
-    --shadow: 0 8px 25px rgba(15, 23, 42, 0.06);
-}
-
 body.dark {
-    --background: #111827;
-    --surface: #1f2937;
 
-    --text: #f9fafb;
-    --muted: #9ca3af;
 
-    --border: #374151;
 
     --shadow: 0 8px 25px rgba(0, 0, 0, 0.25);
 }
 
 body {
-    font-family:
-        Inter,
-        system-ui,
-        -apple-system,
-        BlinkMacSystemFont,
-        "Segoe UI",
-        sans-serif;
 
-    background: var(--background);
-    color: var(--text);
 
     min-height: 100vh;
 }
@@ -66,9 +34,7 @@ body {
 
 .sidebar {
     width: 250px;
-    background: var(--surface);
 
-    border-right: 1px solid var(--border);
 
     padding: 25px 18px;
 
@@ -95,13 +61,11 @@ body {
     width: 45px;
     height: 45px;
 
-    border-radius: 12px;
 
     display: flex;
     align-items: center;
     justify-content: center;
 
-    background: var(--primary);
 
     font-size: 23px;
 }
@@ -129,11 +93,9 @@ body {
     border: none;
     background: transparent;
 
-    color: var(--muted);
 
     padding: 13px 15px;
 
-    border-radius: 10px;
 
     display: flex;
     align-items: center;
@@ -149,16 +111,6 @@ body {
     transition: 0.2s;
 }
 
-.nav-item:hover {
-    background: var(--background);
-    color: var(--text);
-}
-
-.nav-item.active {
-    background: rgba(124, 108, 246, 0.1);
-    color: var(--primary);
-}
-
 
 .sidebar-bottom {
     margin-top: auto;
@@ -167,24 +119,16 @@ body {
 .logout-button {
     width: 100%;
 
-    border: none;
-    background: transparent;
 
-    color: var(--expense);
 
     padding: 13px 15px;
 
-    border-radius: 10px;
 
     font-weight: 600;
 
     text-align: left;
 
     cursor: pointer;
-}
-
-.logout-button:hover {
-    background: rgba(220, 38, 38, 0.08);
 }
 
 
@@ -214,10 +158,6 @@ body {
     align-items: center;
 
     margin-bottom: 35px;
-}
-
-.topbar h1 {
-    font-size: 27px;
 }
 
 .topbar p {
@@ -280,13 +220,7 @@ body {
     margin-bottom: 22px;
 }
 
-.section-heading h2 {
-    font-size: 21px;
-}
-
 .section-heading p {
-    color: var(--muted);
-    margin-top: 5px;
     font-size: 14px;
 }
 
@@ -328,27 +262,18 @@ body {
     width: 45px;
     height: 45px;
 
-    border-radius: 11px;
 
     display: flex;
     align-items: center;
     justify-content: center;
 
-    background: var(--background);
 
     font-size: 21px;
-}
-
-.summary-card span {
-    color: var(--muted);
-
-    font-size: 13px;
 }
 
 .summary-card h3 {
     margin-top: 6px;
 
-    font-size: 20px;
 }
 
 .income-card h3 {
@@ -357,10 +282,6 @@ body {
 
 .expense-card h3 {
     color: var(--expense);
-}
-
-.balance-card h3 {
-    color: var(--primary);
 }
 
 
@@ -401,10 +322,6 @@ body {
     align-items: center;
 
     margin-bottom: 22px;
-}
-
-.card-header h3 {
-    font-size: 17px;
 }
 
 .card-header p {
@@ -487,21 +404,13 @@ select:focus {
 
     border: none;
 
-    border-radius: 9px;
 
-    background: var(--primary);
 
-    color: white;
 
-    font-weight: 700;
 
     cursor: pointer;
 
     transition: 0.2s;
-}
-
-.primary-button:hover {
-    background: var(--primary-dark);
 }
 
 .secondary-button {
@@ -513,7 +422,6 @@ select:focus {
 
     padding: 10px 14px;
 
-    border-radius: 8px;
 
     cursor: pointer;
 }
@@ -558,11 +466,8 @@ select:focus {
 
     justify-content: space-between;
 
-    padding: 13px;
 
-    border: 1px solid var(--border);
 
-    border-radius: 10px;
 
     transition: 0.2s;
 }
@@ -585,14 +490,12 @@ select:focus {
     width: 38px;
     height: 38px;
 
-    border-radius: 9px;
 
     display: flex;
 
     align-items: center;
     justify-content: center;
 
-    background: var(--background);
 }
 
 .transaction-info {
@@ -602,11 +505,8 @@ select:focus {
 .transaction-info h4 {
     font-size: 14px;
 
-    white-space: nowrap;
 
-    overflow: hidden;
 
-    text-overflow: ellipsis;
 }
 
 .transaction-info p {
@@ -624,7 +524,6 @@ select:focus {
 }
 
 .transaction-amount {
-    font-weight: 700;
 
     font-size: 14px;
 }
@@ -769,7 +668,6 @@ select:focus {
 .category-row {
     display: grid;
 
-    grid-template-columns: 120px 1fr 80px;
 
     gap: 10px;
 
@@ -781,11 +679,9 @@ select:focus {
 }
 
 .progress {
-    height: 8px;
 
     border-radius: 20px;
 
-    background: var(--background);
 
     overflow: hidden;
 }
@@ -793,7 +689,6 @@ select:focus {
 .progress-bar {
     height: 100%;
 
-    background: var(--primary);
 
     border-radius: inherit;
 }
@@ -949,11 +844,9 @@ select:focus {
 
     background: var(--surface);
 
-    border-radius: 15px;
 
     padding: 25px;
 
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
 }
 
 .modal-header {
@@ -1140,18 +1033,10 @@ select:focus {
         padding: 18px 14px 85px;
     }
 
-    .topbar h1 {
-        font-size: 22px;
-    }
-
     .topbar p {
         font-size: 12px;
     }
 
-
-    .summary-grid {
-        grid-template-columns: 1fr;
-    }
 
     .form-row {
         grid-template-columns: 1fr;
@@ -1268,26 +1153,22 @@ select:focus {
     background: var(--surface); color: var(--text); font-size: 20px; cursor: pointer; line-height: 1;
 }
 .month-btn:disabled { opacity: 0.35; cursor: not-allowed; }
-.month-all.active { background: var(--primary); color: #fff; border-color: var(--primary); }
 
 .reports-extra { margin-top: 22px; }
 .category-row { grid-template-columns: 120px 1fr minmax(90px, auto); }
 
 .budget-banner {
     display: flex; flex-wrap: wrap; gap: 8px 16px; padding: 12px 16px; margin-bottom: 20px;
-    border-radius: 12px; background: rgba(217, 119, 6, 0.12); font-size: 14px;
+    background: rgba(217, 119, 6, 0.12); font-size: 14px;
 }
 .budget-banner[hidden] { display: none; }
 .budget-banner .over { color: var(--expense); font-weight: 600; }
 .budget-banner .warn { color: #b45309; font-weight: 600; }
 
 .budget-list { display: flex; flex-direction: column; gap: 16px; }
-.budget-top { display: flex; justify-content: space-between; gap: 10px; font-size: 14px; margin-bottom: 6px; }
+.budget-top { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 6px; }
 .budget-note { font-size: 12px; color: var(--muted); margin-top: 5px; }
-.budget-row.warn .progress-bar { background: #d97706; }
-.budget-row.over .progress-bar { background: var(--expense); }
 .budget-row.over .budget-note { color: var(--expense); }
-.budget-row.ok .progress-bar { background: var(--income); }
 
 .budget-form { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 6px 0 16px; }
 .budget-form label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
@@ -1328,7 +1209,7 @@ select:focus {
 .mp-list { display: flex; flex-direction: column; gap: 8px; margin: 14px 0; }
 .mp-row {
     display: grid; grid-template-columns: auto 1fr auto auto; gap: 10px; align-items: center;
-    padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px;
+    padding: 10px 12px; border: 1px solid var(--border); 
 }
 .mp-row.dup { opacity: 0.55; }
 .mp-main small { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
@@ -1337,7 +1218,7 @@ select:focus {
 .mp-amt.income { color: var(--income); }
 .mp-amt.expense { color: var(--expense); }
 .mp-note { font-size: 13px; color: var(--muted); margin: 6px 0; }
-.mp-fee { display: flex; gap: 8px; align-items: center; font-size: 14px; margin: 10px 0; }
+.mp-fee { display: flex; gap: 8px; font-size: 14px; margin: 10px 0; }
 
 @media (max-width: 700px) {
     .budget-form { grid-template-columns: 1fr; }
@@ -1352,17 +1233,6 @@ select:focus {
    VISUAL REFRESH: ink-green + teal, ledger-style lists
 ===================================================== */
 :root {
-    --ink: #14110f;
-    --primary: #6d5df0;
-    --primary-dark: #5648d6;
-    --accent: #8b7cff;
-    --background: #f1f4f1;
-    --surface: #ffffff;
-    --text: #12201d;
-    --muted: #5f6f6a;
-    --border: #dfe6e2;
-    --income: #1f8a58;
-    --expense: #cf4a3c;
     --shadow: none;
     --font-display: "Bricolage Grotesque", "DM Sans", system-ui, sans-serif;
     --font-body: "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -1384,7 +1254,7 @@ h1, h2, h3, .summary-card h3, .brand h2, .brand h1, .month-label { font-family: 
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* ---- sidebar: dark ink panel ---- */
-.sidebar { background: var(--ink); border-right: none; color: #efebe8; }
+.sidebar { border-right: none; color: #efebe8; }
 .sidebar h1, .sidebar h2, .sidebar h3 { color: #fff; }
 .sidebar p, .sidebar small { color: #a39c97; }
 .brand-icon { background: var(--accent); border-radius: 12px; }
@@ -1395,7 +1265,6 @@ h1, h2, h3, .summary-card h3, .brand h2, .brand h1, .month-label { font-family: 
 .logout-button:hover { background: rgba(207, 74, 60, 0.18); }
 
 /* ---- page chrome ---- */
-.section-heading h2 { font-size: 28px; }
 .section-heading p { color: var(--muted); margin-top: 4px; }
 .topbar h1 { font-size: 24px; }
 
@@ -1406,23 +1275,19 @@ h1, h2, h3, .summary-card h3, .brand h2, .brand h1, .month-label { font-family: 
 
 /* ---- dashboard: balance is the hero ---- */
 @media (min-width: 1101px) {
-    .summary-grid { grid-template-columns: 1.6fr 1fr 1fr 1fr; }
 }
 .summary-icon { background: var(--background); border-radius: 50%; }
-.balance-card { background: var(--ink); border-color: var(--ink); color: #fff; }
+.balance-card { color: #fff; }
 .balance-card span { color: #b6aea8; }
-.balance-card h3 { color: #fff; font-size: 38px; line-height: 1.1; letter-spacing: -0.02em; }
+.balance-card h3 { color: #fff; line-height: 1.1; letter-spacing: -0.02em; }
 .balance-card .summary-icon { background: rgba(255, 255, 255, 0.1); }
 .summary-card span { font-size: 13px; color: var(--muted); }
-.summary-card h3 { font-size: 24px; }
 
 /* ---- forms and buttons ---- */
 input, select, textarea { border-radius: 8px; font-family: inherit; }
-input:focus, select:focus, textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(124, 108, 246, 0.18); }
-.primary-button { background: var(--primary); color: #fff; border-radius: 8px; font-weight: 600; }
-.primary-button:hover { background: var(--primary-dark); }
+input:focus, select:focus, textarea:focus { outline: none; }
+.primary-button { border-radius: 8px; font-weight: 600; }
 .secondary-button { border-radius: 8px; font-weight: 500; }
-.secondary-button:hover { border-color: var(--primary); color: var(--primary); }
 .install-button { border-radius: 8px; }
 
 /* ---- transactions: ledger rows, not boxes ---- */
@@ -1438,7 +1303,6 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--p
 .progress { height: 6px; }
 .sync-status { font-weight: 500; }
 .month-btn, .month-all { border-radius: 8px; }
-.month-all.active { background: var(--primary); border-color: var(--primary); }
 .budget-banner { border-radius: 10px; border: 1px solid rgba(217, 150, 43, 0.35); }
 .mp-row { border-radius: 10px; }
 
@@ -1474,7 +1338,6 @@ html, body { max-width: 100%; overflow-x: hidden; }
     .sidebar.open { box-shadow: 0 0 40px rgba(0, 0, 0, 0.45); }
 
     .section-heading { flex-direction: column; align-items: stretch; gap: 12px; margin-bottom: 16px; }
-    .section-heading h2 { font-size: 24px; }
     .heading-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
     .heading-actions .secondary-button { padding: 10px 8px; font-size: 13px; }
 
@@ -1486,10 +1349,8 @@ html, body { max-width: 100%; overflow-x: hidden; }
     .summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
     .summary-card { padding: 14px; gap: 10px; }
     .summary-icon { display: none; }
-    .summary-card h3 { font-size: 18px; }
     .summary-card span { font-size: 12px; }
     .balance-card { grid-column: 1 / -1; padding: 20px 18px; }
-    .balance-card h3 { font-size: 32px; }
     .summary-grid .summary-card:last-child { grid-column: 1 / -1; }
 
     .card { padding: 16px; border-radius: 12px; }
@@ -1541,7 +1402,7 @@ html, body { max-width: 100%; overflow-x: hidden; }
 .install-banner { display: flex; align-items: center; gap: 10px; padding: 12px 14px; margin-bottom: 16px;
     background: var(--ink); color: #fff; border-radius: 12px; font-size: 14px; }
 .install-banner span { flex: 1; line-height: 1.4; }
-.install-banner .primary-button { background: var(--accent); color: #2a1a00; padding: 8px 14px; white-space: nowrap; }
+.install-banner .primary-button { padding: 8px 14px; white-space: nowrap; }
 .install-dismiss { background: transparent; border: none; color: #b6aea8; font-size: 18px; cursor: pointer; padding: 4px 6px; }
 
 .install-banner .primary-button { width: auto; flex: none; }
@@ -1559,9 +1420,8 @@ html, body { max-width: 100%; overflow-x: hidden; }
 .stat-tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
 .stat-tile { background: var(--background); border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .stat-tile small { font-size: 12px; color: var(--muted); }
-.stat-tile strong { font-family: var(--font-display); font-size: 20px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.stat-tile strong { font-family: var(--font-display); font-size: 20px; font-variant-numeric: tabular-nums; }
 .stat-tile span { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.budget-row.goal .progress-bar { background: var(--primary); }
 .goal-btn { margin-top: 10px; padding: 8px 12px; font-size: 13px; }
 .mg-row { grid-template-columns: 1fr auto auto; }
 .form-group select, .form-group input { width: 100%; }
@@ -1570,7 +1430,6 @@ html, body { max-width: 100%; overflow-x: hidden; }
     .widget-grid { grid-template-columns: minmax(0, 1fr); gap: 14px; }
     .stat-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
     .stat-tile { padding: 12px; }
-    .stat-tile strong { font-size: 17px; }
     .mg-row { grid-template-columns: 1fr auto; }
     .mg-row .mp-main { grid-column: 1 / -1; }
 }
@@ -1581,8 +1440,6 @@ html, body { max-width: 100%; overflow-x: hidden; }
     .summary-grid { grid-template-columns: minmax(0, 1.5fr) repeat(3, minmax(0, 1fr)); }
 }
 @media (max-width: 1350px) { .summary-icon { display: none; } }
-.summary-card h3 { font-size: 22px; }
-.balance-card h3 { font-size: 34px; }
 .trend-lg { display: block; }
 .trend-sm { display: none; }
 .trend-lg .chart-label { font-size: 13px; }
@@ -1620,7 +1477,7 @@ body.lock-open { overflow: hidden; }
 .lock-dots.shake { animation: lock-shake 0.35s; }
 @keyframes lock-shake { 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); } }
 .lock-pad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; max-width: 290px; margin: 0 auto; }
-.lock-pad button { height: 64px; border-radius: 50%; border: none; background: rgba(255, 255, 255, 0.08); color: #fff;
+.lock-pad button { border-radius: 50%; border: none; background: rgba(255, 255, 255, 0.08); color: #fff;
     font: 600 24px var(--font-display); cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .lock-pad button:active { background: rgba(255, 255, 255, 0.2); }
 .lock-pad button:disabled { opacity: 0.35; cursor: not-allowed; }
@@ -1717,7 +1574,6 @@ body { background: var(--background); color: var(--text); }
 /* the hero balance card glows */
 .balance-card { background: radial-gradient(120% 150% at 100% 0%, rgba(124, 108, 246, 0.30), transparent 58%), var(--ink);
     border-color: rgba(139, 124, 255, 0.28); box-shadow: 0 0 44px -14px var(--glow); }
-.balance-card h3 { font-size: 40px; }
 
 /* sparklines inside stat cards */
 .spark { position: absolute; left: 0; right: 0; bottom: 0; height: 58%; pointer-events: none; z-index: 0; }
@@ -1754,7 +1610,6 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); box-sha
 
 @media (max-width: 800px) {
     .section-heading h2 { font-size: 30px; }
-    .balance-card h3 { font-size: 34px; }
     .spark { height: 50%; }
 }
 

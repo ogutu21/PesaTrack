@@ -17,6 +17,7 @@ import { CURRENCIES, getBase, getRates, setCurrencySettings, formatMoney, format
 import { initReport } from "./report.js";
 import { initBackup } from "./backup.js";
 import { initHousehold } from "./household.js";
+import { initAttention } from "./attention.js";
 
 let transactions = [];
 let currentUser = null;
@@ -100,6 +101,7 @@ function setSync(state) {
     if (!el) return;
     el.className = `sync-status ${state}`;
     el.textContent = state === "online" ? "☁️ Synced" : state === "offline" ? "Offline — saved on device" : "Syncing…";
+    el.title = el.textContent; el.setAttribute("aria-label", el.textContent);
 }
 window.addEventListener("online", () => setSync("online"));
 window.addEventListener("offline", () => setSync("offline"));
@@ -217,6 +219,7 @@ $("transactionForm").addEventListener("submit", event => {
     setupCurrencyForm();
     dateInput.value = localToday();
     toast("Transaction added", "success");
+    setSheet(false);
     if (tx.type === "expense") budgetCheck(tx.category, before, before + tx.amount);
 });
 
@@ -326,7 +329,7 @@ function renderRecentTransactions() {
     const recent = [...visible()].sort(byNewest).slice(0, 5);
     $("recentTransactions").innerHTML = recent.length
         ? recent.map(transactionHTML).join("")
-        : emptyState("💳", "No transactions yet", "Add your first transaction above.");
+        : emptyState("💳", "No transactions yet", "Add your first transaction to get started.");
 }
 
 function renderTransactions() {
@@ -582,22 +585,12 @@ function renderBudgets() {
                     <span>${formatCurrency(s)} of ${formatCurrency(limit)}</span>
                 </div>
                 <div class="progress"><div class="progress-bar" style="width:${Math.min(pct, 100).toFixed(1)}%"></div></div>
-                <div class="budget-note">${left >= 0 ? `${formatCurrency(left)} left` : `${formatCurrency(-left)} over budget`} · ${pct.toFixed(0)}%</div>
+                <div class="budget-note">${{ over: "🚨", warn: "⚠️", ok: "✓" }[level]} ${left >= 0 ? `${formatCurrency(left)} left` : `${formatCurrency(-left)} over budget`} · ${pct.toFixed(0)}%</div>
             </div>`;
     }).join("") : emptyState("🎯", "No budgets yet", "Tap “Edit budgets” to set a monthly limit for a category.");
 }
 
-function renderBanner() {
-    const spent = spentByCategory(budgetMonth());
-    const alerts = activeBudgets()
-        .map(([cat, limit]) => ({ cat, ...budgetStatus(spent[cat] || 0, limit) }))
-        .filter(a => a.level !== "ok");
-    const el = $("budgetBanner");
-    el.hidden = !alerts.length;
-    el.innerHTML = alerts.map(a => a.level === "over"
-        ? `<span class="over">🚨 ${escapeHTML(a.cat)}: over budget (${a.pct.toFixed(0)}%)</span>`
-        : `<span class="warn">⚠️ ${escapeHTML(a.cat)}: ${a.pct.toFixed(0)}% of budget used</span>`).join("");
-}
+function renderBanner() { attention.render(); }
 
 function openOverlay(html, wide = false) {
     const overlay = document.createElement("div");
@@ -844,8 +837,40 @@ document.querySelectorAll("[data-open-mpesa]").forEach(b => b.addEventListener("
 const features = initFeatures({
     $, toast, confirmDialog, openOverlay, escapeHTML, formatCurrency, formatDate, getCategoryIcon, emptyState,
     localToday, shiftMonth, totalsFor, inMonth, spentByCategory, budgetMonth, importTransactions, reportWriteError,
-    newId, colorFor, afterRender: renderDashTab, categoriesFor, fillSelect, onCategoriesChanged: () => refreshCategoryUI(), getUser: () => currentUser, getVisible: visible, getMonth: () => selectedMonth, getBudgets: () => budgets
+    newId, colorFor, afterRender: () => { renderDashTab(); renderBanner(); }, categoriesFor, fillSelect, onCategoriesChanged: () => refreshCategoryUI(), getUser: () => currentUser, getVisible: visible, getMonth: () => selectedMonth, getBudgets: () => budgets
 });
+
+// ---------- "needs attention" strip ----------
+const attention = initAttention({
+    escapeHTML, formatCurrency, formatDate, localToday, monthLabel, currentMonthKey,
+    spentByCategory, budgetMonth, getBudgets: () => budgets, getFeatureData: () => features.getData(),
+    go(kind) {
+        if (kind === "budgets") openSection("reports");
+        else if (kind === "recurring") { openSection("dashboard"); dashTab = "upcoming"; renderDashTab(); }
+        else if (kind === "goals") { openSection("dashboard"); setTimeout(() => $("dashWidgets").scrollIntoView({ behavior: "smooth" }), 250); }
+    }
+});
+
+// ---------- quick-add bottom sheet (phones) ----------
+const quickAdd = $("quickAddCard");
+{
+    const x = document.createElement("button");
+    x.type = "button"; x.className = "sheet-close"; x.setAttribute("aria-label", "Close"); x.textContent = "×";
+    x.addEventListener("click", () => setSheet(false));
+    quickAdd.prepend(x);
+}
+function setSheet(open) {
+    quickAdd.classList.toggle("sheet-open", open);
+    $("sheetBackdrop").hidden = !open;
+    document.body.classList.toggle("sheet-lock", open);
+    if (open) setTimeout(() => $("description").focus(), 300);
+}
+$("fabAdd").addEventListener("click", () => {
+    if (!$("dashboard").classList.contains("active")) openSection("dashboard");
+    setSheet(true);
+});
+$("sheetBackdrop").addEventListener("click", () => setSheet(false));
+document.addEventListener("keydown", e => { if (e.key === "Escape" && quickAdd.classList.contains("sheet-open")) setSheet(false); });
 
 // ---------- app lock (PIN / fingerprint) ----------
 const appLock = initAppLock({ $, toast, confirmDialog, escapeHTML, logout });
