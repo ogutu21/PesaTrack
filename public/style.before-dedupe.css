@@ -1508,7 +1508,7 @@ html, body { max-width: 100%; overflow-x: hidden; }
 }
 
 @media (max-width: 800px) {
-    .transaction-info h4 { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.3; }
+    .transaction-info h4 { white-space: normal; display: -webkit-box; line-clamp: 2; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.3; }
     .transaction-info p { font-size: 12px; }
 }
 @media (max-width: 550px) {
