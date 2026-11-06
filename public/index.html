@@ -24,6 +24,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="refine.css">
+    <link rel="stylesheet" href="dashboard.css">
     <link rel="manifest" href="manifest.json">
     <link rel="icon" href="icons/icon-192.png">
     <link rel="apple-touch-icon" href="icons/icon-192.png">
@@ -73,7 +74,7 @@
         <div class="sidebar-bottom">
 
             <button id="logoutButton" class="logout-button">
-                🚪 Logout
+                <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>Logout
             </button>
 
         </div>
@@ -142,9 +143,9 @@
                     <p>Here's how your money is doing.</p>
                 </div>
                 <div class="heading-actions">
-                    <button type="button" class="secondary-button" data-open-mpesa>📲 Import M-Pesa</button>
-                    <button type="button" class="secondary-button" data-open-statement>📄 Import statement (PDF)</button>
-                    <button type="button" class="secondary-button" data-export-csv>⬇ Export CSV</button>
+                    <button type="button" class="secondary-button" data-open-mpesa><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>Import M-Pesa</button>
+                    <button type="button" class="secondary-button" data-open-statement><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zM14 3v5h5M9 13h6M9 17h4"/></svg>Import statement (PDF)</button>
+                    <button type="button" class="secondary-button" data-export-csv><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3m0 0L8 7m4-4l4 4M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg>Export CSV</button>
                 </div>
 
             </div>
@@ -209,7 +210,7 @@
 
             <div class="widgets-bar">
                 <h3>At a glance</h3>
-                <button type="button" id="customizeWidgets" class="link-button">⚙ Customize</button>
+                <button type="button" id="customizeWidgets" class="link-button"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9M13 5v4M7 15v4"/></svg>Customize</button>
             </div>
             <div id="dashWidgets" class="widget-grid"></div>
 
@@ -397,9 +398,9 @@
                     <p>View and manage your financial activity.</p>
                 </div>
                 <div class="heading-actions">
-                    <button type="button" class="secondary-button" data-open-mpesa>📲 Import M-Pesa</button>
-                    <button type="button" class="secondary-button" data-open-statement>📄 Import statement (PDF)</button>
-                    <button type="button" class="secondary-button" data-export-csv>⬇ Export CSV</button>
+                    <button type="button" class="secondary-button" data-open-mpesa><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>Import M-Pesa</button>
+                    <button type="button" class="secondary-button" data-open-statement><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zM14 3v5h5M9 13h6M9 17h4"/></svg>Import statement (PDF)</button>
+                    <button type="button" class="secondary-button" data-export-csv><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3m0 0L8 7m4-4l4 4M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg>Export CSV</button>
                 </div>
 
             </div>
@@ -410,7 +411,7 @@
                 <div class="filters">
 
                     <div class="search-box">
-                        🔍
+                        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
 
                         <input
                             type="search"
@@ -485,7 +486,7 @@
                         id="clearAllButton"
                         class="danger-button"
                     >
-                        🗑 Clear All
+                        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg>Clear All
                     </button>
 
                 </div>
@@ -505,7 +506,7 @@
                     <h2>Reports</h2>
                     <p>Understand where your money goes.</p>
                 </div>
-                <div class="heading-actions"><button type="button" class="secondary-button" data-open-report>📄 Summary report</button></div>
+                <div class="heading-actions"><button type="button" class="secondary-button" data-open-report><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zM14 3v5h5M9 13h6M9 17h4"/></svg>Summary report</button></div>
 
             </div>
 
@@ -807,7 +808,7 @@
             <div class="card ingest-card" id="backupCard">
                 <div class="card-header"><div><h3>Backup and restore</h3><p>Download everything as a file, or bring it back.</p></div></div>
                 <div class="heading-actions">
-                    <button type="button" class="secondary-button" data-backup>⬇ Download backup</button>
+                    <button type="button" class="secondary-button" data-backup><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3m0 0L8 7m4-4l4 4M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg>Download backup</button>
                     <button type="button" class="secondary-button" data-restore>⬆ Restore from file</button>
                 </div>
                 <p class="ingest-note">A backup includes transactions, budgets, goals, recurring items, custom categories and currency settings for the space you're viewing.</p>
