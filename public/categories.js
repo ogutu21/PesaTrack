@@ -31,7 +31,11 @@ const FALLBACK_COLORS = ["#0ea5e9", "#f97316", "#22c55e", "#a855f7", "#ec4899", 
 let custom = []; // [{ id, name, icon, type: "expense" | "income" }]
 
 export function setCustomCategories(list) {
-    custom = (Array.isArray(list) ? list : []).filter(c => c && c.name && (c.type === "expense" || c.type === "income"));
+    // Custom categories sync from the database (and from other household members), so never trust them as HTML:
+    // the icon must be one of the offered emoji and the name is length-limited.
+    custom = (Array.isArray(list) ? list : [])
+        .filter(c => c && c.name && (c.type === "expense" || c.type === "income"))
+        .map(c => ({ ...c, name: String(c.name).slice(0, 40), icon: EMOJI_CHOICES.includes(c.icon) ? c.icon : "💰" }));
 }
 export const getCustomCategories = () => custom;
 

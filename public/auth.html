@@ -547,6 +547,11 @@ authForm.addEventListener(
             busy = true;
 
 
+            if (signupMode && password.length < 8) {
+                showError("Use at least 8 characters for your password.");   // at least 8 characters
+                busy = false; submitButton.disabled = false; return;
+            }
+
             if (signupMode) {
 
                 const name =

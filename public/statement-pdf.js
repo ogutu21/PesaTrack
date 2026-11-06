@@ -12,10 +12,11 @@ async function load() {
 // askPassword(wrong) -> Promise<string | null>   (null = the person cancelled)
 export async function readPdf(file, { askPassword, onProgress } = {}) {
     const lib = await load();
+    if (file.size > 40 * 1024 * 1024) throw new Error("File too large to be a statement");
     const data = new Uint8Array(await file.arrayBuffer());
     let password, doc, task;
     for (;;) {
-        task = lib.getDocument({ data: data.slice(), password });
+        task = lib.getDocument({ data: data.slice(), password, isEvalSupported: false });
         try { doc = await task.promise; break; }
         catch (err) {
             await task.destroy().catch(() => {});
@@ -28,6 +29,7 @@ export async function readPdf(file, { askPassword, onProgress } = {}) {
             throw err;
         }
     }
+    if (doc.numPages > 600) throw new Error("Too many pages for a statement");
     const pages = [];
     for (let n = 1; n <= doc.numPages; n++) {
         const page = await doc.getPage(n);

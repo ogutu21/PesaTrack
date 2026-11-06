@@ -15,6 +15,31 @@
             "value": "no-cache"
           }
         ]
+      },
+      {
+        "source": "**",
+        "headers": [
+          {
+            "key": "Content-Security-Policy-Report-Only",
+            "value": "default-src 'self'; script-src 'self' https://www.gstatic.com https://apis.google.com 'wasm-unsafe-eval' 'sha256-hxeJghcmldBXlmnc9DnV63znpl9j5pEiRZa/ckzO6EE=' 'sha256-RCoMn24RNxiKRBTK75XFg12IcYC288dKaGmQuqytZPs=' 'sha256-6IGqD03pmGmPhQoN689cKlpuuTfhpbPwxiezrrnBNd8='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://*.googleusercontent.com; connect-src 'self' https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com https://firebaseinstallations.googleapis.com; frame-src https://*.firebaseapp.com https://*.web.app https://accounts.google.com https://apis.google.com; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+          },
+          {
+            "key": "X-Content-Type-Options",
+            "value": "nosniff"
+          },
+          {
+            "key": "X-Frame-Options",
+            "value": "DENY"
+          },
+          {
+            "key": "Referrer-Policy",
+            "value": "strict-origin-when-cross-origin"
+          },
+          {
+            "key": "Permissions-Policy",
+            "value": "camera=(), microphone=(), geolocation=(), payment=(), usb=(), bluetooth=()"
+          }
+        ]
       }
     ]
   },

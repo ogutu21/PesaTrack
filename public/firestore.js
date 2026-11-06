@@ -2,7 +2,7 @@
 // Data lives in a "root": the signed-in user's own space, or a shared household.
 import { db } from "./firebase-config.js";
 import {
-    doc, setDoc, getDoc, updateDoc, deleteDoc, deleteField, collection, onSnapshot, getDocs, writeBatch
+    doc, setDoc, getDoc, updateDoc, deleteDoc, deleteField, collection, onSnapshot, getDocs, writeBatch, terminate, clearIndexedDbPersistence, waitForPendingWrites
 } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
 
 let activeRoot = null;                                  // null = the user's own space
@@ -117,3 +117,13 @@ export const joinHousehold = (uid, hid, secret, displayName) =>
     updateDoc(hhDoc(hid), { [`members.${uid}`]: { name: displayName, role: "member", joinedAt: iso() }, joinSecret: secret });
 export const removeHouseholdMember = (hid, memberUid) => updateDoc(hhDoc(hid), { [`members.${memberUid}`]: deleteField() });
 export const rotateInvite = hid => updateDoc(hhDoc(hid), { inviteSecret: rand(12), joinSecret: deleteField() });
+
+// ---------- logout hygiene ----------
+// Give queued offline writes a few seconds to reach the server before we sign out.
+export async function flushPending(ms = 4000) {
+    try { await Promise.race([waitForPendingWrites(db), new Promise(r => setTimeout(r, ms))]); } catch { /* offline: carry on */ }
+}
+// Remove the offline copy of the data (IndexedDB) so it isn't left behind on a shared phone or computer.
+export async function wipeLocalCache() {
+    try { await terminate(db); await clearIndexedDbPersistence(db); } catch (e) { console.warn("Could not clear the local cache:", e); }
+}

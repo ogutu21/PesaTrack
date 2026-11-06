@@ -1,8 +1,8 @@
 // Offline-capable app shell. Bump VERSION when you add files to SHELL.
-const VERSION = "pesatrack-v17";
+const VERSION = "pesatrack-v19";
 const SHELL = [
     "/", "/index.html", "/auth.html", "/style.css", "/script.js",
-    "/firestore.js", "/firebase-config.js", "/mpesa.js", "/charts.js", "/features.js", "/categories.js", "/applock.js", "/currency.js", "/report.js", "/backup.js", "/household.js", "/recurrence.js", "/attention.js", "/statement.js", "/statement-pdf.js", "/statement-ui.js", "/refine.css", "/dashboard.css", "/manifest.json",
+    "/firestore.js", "/firebase-config.js", "/mpesa.js", "/charts.js", "/features.js", "/categories.js", "/applock.js", "/currency.js", "/report.js", "/backup.js", "/household.js", "/recurrence.js", "/attention.js", "/statement.js", "/statement-pdf.js", "/statement-ui.js", "/refine.css", "/home.js", "/dashboard.css", "/manifest.json",
     "/icons/icon-192.png", "/icons/icon-512.png"
 ];
 
@@ -29,6 +29,7 @@ self.addEventListener("fetch", e => {
     const sameOrigin = url.origin === self.location.origin;
     const firebaseSdk = url.hostname === "www.gstatic.com" && url.pathname.startsWith("/firebasejs/");
     if (!sameOrigin && !firebaseSdk) return; // Firestore/Auth API calls go straight through
+    if (url.pathname.startsWith("/__/")) return;      // Firebase sign-in handler: never cache
 
     if (sameOrigin) {
         // Network-first: new deploys show up immediately; cache is the offline fallback.

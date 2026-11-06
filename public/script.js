@@ -6,7 +6,7 @@ import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/
 import {
     subscribeTransactions, saveTransaction, deleteTransaction,
     clearTransactions, importTransactions, subscribeBudgets, saveBudgets,
-    useRoot, subscribeCurrency, saveCurrency, normalizeTags
+    useRoot, subscribeCurrency, saveCurrency, normalizeTags, wipeLocalCache, flushPending
 } from "./firestore.js";
 import { parseMpesa } from "./mpesa.js";
 import { openStatementImport } from "./statement-ui.js";
@@ -19,6 +19,7 @@ import { initReport } from "./report.js";
 import { initBackup } from "./backup.js";
 import { initHousehold } from "./household.js";
 import { initAttention } from "./attention.js";
+import { initHome } from "./home.js";
 
 let transactions = [];
 let currentUser = null;
@@ -615,7 +616,7 @@ function openBudgetEditor() {
                 ${cats.map((c, i) => `
                     <label><span>${getCategoryIcon(c)} ${escapeHTML(c)}</span>
                         <input type="number" min="0" step="0.01" inputmode="decimal" name="b${i}"
-                               value="${budgets[c] || ""}" placeholder="No limit"></label>`).join("")}
+                               value="${Number(budgets[c]) || ""}" placeholder="No limit"></label>`).join("")}
             </div>
             <div class="modal-actions">
                 <button type="button" class="secondary-button" data-close>Cancel</button>
@@ -868,6 +869,22 @@ const attention = initAttention({
     }
 });
 
+// ---------- home extras: action buttons, frequent payees, Insights tabs ----------
+const home = initHome({
+    $, escapeHTML, formatCurrency, colorFor, totalsFor, inMonth, shiftMonth, monthLabel,
+    getAll: () => transactions, getVisible: visible, getMonth: () => selectedMonth,
+    openGoals: () => { openSection("dashboard"); setTimeout(() => $("dashWidgets").scrollIntoView({ behavior: "smooth" }), 250); },
+    addTx(type, f = {}) {
+        if (!$("dashboard").classList.contains("active")) openSection("dashboard");
+        if (matchMedia("(max-width: 800px)").matches) setSheet(true);
+        else setTimeout(() => $("quickAddCard").scrollIntoView({ behavior: "smooth", block: "center" }), 60);
+        if (type) { $("type").value = type; fillSelect($("category"), type, f.category || ""); }
+        if (f.description != null) $("description").value = f.description;
+        if (f.amount != null) $("amount").value = f.amount;
+        setTimeout(() => $(f.description != null ? "amount" : "description").focus(), 320);
+    }
+});
+
 // ---------- quick-add bottom sheet (phones) ----------
 const quickAdd = $("quickAddCard");
 {
@@ -932,6 +949,7 @@ function renderAll() {
     renderComparison();
     renderCharts();
     features.render();
+    home.render();
 }
 
 // =====================================================
@@ -1074,6 +1092,8 @@ onAuthStateChanged(auth, user => {
 
 async function logout() {
     try {
+        await flushPending();
+        await wipeLocalCache();
         await signOut(auth);
         window.location.href = "auth.html";
     } catch (e) {
