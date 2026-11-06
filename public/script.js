@@ -9,6 +9,7 @@ import {
     useRoot, subscribeCurrency, saveCurrency, normalizeTags
 } from "./firestore.js";
 import { parseMpesa } from "./mpesa.js";
+import { openStatementImport } from "./statement-ui.js";
 import { donutHTML, trendHTML, sparkHTML } from "./charts.js";
 import { initFeatures } from "./features.js";
 import { iconFor, colorFor, categoriesFor, fillSelect, fillFilter } from "./categories.js";
@@ -831,6 +832,22 @@ function openMpesaImport(prefill = "") {
     });
 }
 document.querySelectorAll("[data-open-mpesa]").forEach(b => b.addEventListener("click", openMpesaImport));
+
+// Import a whole M-Pesa statement (PDF)
+document.querySelectorAll("[data-open-statement]").forEach(b => b.addEventListener("click", () => {
+    if (!currentUser) return;
+    openStatementImport({
+        openOverlay, categoriesFor, getCategoryIcon, escapeHTML, formatCurrency, formatDate, toast,
+        importTransactions, reportWriteError,
+        uid: () => currentUser.uid,
+        existingIds: () => new Set(transactions.map(t => t.id)),
+        onImported: txs => {
+            if (selectedMonth !== "all" && !txs.some(t => monthKey(t.date) === selectedMonth)) {
+                selectedMonth = monthKey(txs.map(t => t.date).sort().pop());
+            }
+        }
+    });
+}));
 
 
 // ---------- dashboard widgets, goals, recurring ----------
