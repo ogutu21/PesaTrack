@@ -20,6 +20,7 @@ import { initBackup } from "./backup.js";
 import { initHousehold } from "./household.js";
 import { initAttention } from "./attention.js";
 import { initHome } from "./home.js";
+import { initInbox } from "./inbox.js";
 
 let transactions = [];
 let currentUser = null;
@@ -908,6 +909,7 @@ document.addEventListener("keydown", e => { if (e.key === "Escape" && quickAdd.c
 
 // ---------- app lock (PIN / fingerprint) ----------
 const appLock = initAppLock({ $, toast, confirmDialog, escapeHTML, logout });
+const inbox = initInbox({ $, toast, confirmDialog, escapeHTML });
 
 // ---------- auth + live data ----------
 function updateUserInformation() {
@@ -1075,6 +1077,7 @@ initBackup({ $, toast, confirmDialog, openOverlay, escapeHTML, localToday, getTr
 
 onAuthStateChanged(auth, user => {
     appLock.onUser(user);
+    inbox.onUser(user);
     stopData();
     if (!user) {
         window.location.href = "auth.html";

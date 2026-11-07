@@ -22,11 +22,12 @@ service cloud.firestore {
     }
 
     function validSetting(docId, data) {
-      return data.keys().hasOnly(['limits', 'items', 'base', 'rates', 'updatedAt'])
+      return data.keys().hasOnly(['limits', 'items', 'base', 'rates', 'secret', 'updatedAt'])
         && (
           (docId == 'budgets' && data.limits is map && data.limits.size() <= 100)
           || (docId in ['goals', 'recurring', 'categories', 'households']
               && data.items is list && data.items.size() <= 200)
+          || (docId == 'ingest' && data.secret is string && data.secret.size() >= 32 && data.secret.size() <= 64)
           || (docId == 'currency' && data.base is string && data.base.size() == 3
               && data.rates is map && data.rates.size() <= 50)
         );
@@ -43,6 +44,19 @@ service cloud.firestore {
       allow read, delete: if request.auth != null && request.auth.uid == userId;
       allow create, update: if request.auth != null && request.auth.uid == userId
         && validSetting(docId, request.resource.data);
+    }
+
+    // inbox-v1: your phone's automation app drops M-Pesa SMS text here. Only you can read or delete it.
+    // Creating a message needs your private key (stored in your settings, readable only by you); no edits.
+    match /users/{userId}/inbox/{msgId} {
+      allow read, delete: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.resource.data.keys().hasOnly(['text', 'secret'])
+        && request.resource.data.text is string
+        && request.resource.data.text.size() >= 20 && request.resource.data.text.size() <= 1000
+        && request.resource.data.secret is string
+        && exists(/databases/$(database)/documents/users/$(userId)/settings/ingest)
+        && request.resource.data.secret == get(/databases/$(database)/documents/users/$(userId)/settings/ingest).data.secret;
+      allow update: if false;
     }
 
     // ---------- shared households ----------
