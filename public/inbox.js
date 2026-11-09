@@ -56,10 +56,18 @@ export function initInbox({ $, toast, escapeHTML: esc, confirmDialog }) {
     async function render() {
         const el = ensureCard(); if (!el || !uid) return;
         try { const s = await getDoc(settingsRef()); secret = s.exists() ? s.data().secret : null; } catch { secret = null; }
+        const inApp = !!window.PesaTrackApp;
+        try { if (inApp) { secret ? PesaTrackApp.saveConfig(uid, app.options.apiKey, secret, app.options.projectId) : PesaTrackApp.clearConfig(); } } catch {}
         const head = `<div class="card-header"><div><h3>Automatic M-Pesa capture</h3><p>Add transactions as soon as the M-Pesa SMS arrives.</p></div></div>`;
         if (!secret) {
             el.innerHTML = `${head}<p class="ingest-note">A free automation app on your phone sends each M-Pesa message to your private PesaTrack inbox. PesaTrack adds it the next time you open the app, or straight away if it's open.</p>
                 <div class="heading-actions"><button type="button" class="primary-button" data-ac="on">Turn on</button></div>`;
+            return;
+        }
+        if (inApp) {
+            el.innerHTML = `${head}
+                <p class="ingest-note"><strong>On.</strong> This phone sends each new M-Pesa message to PesaTrack by itself. Nothing else to set up.</p>
+                <div class="heading-actions"><button type="button" class="secondary-button" data-ac="off">Turn off</button></div>`;
             return;
         }
         el.innerHTML = `${head}
@@ -98,7 +106,7 @@ export function initInbox({ $, toast, escapeHTML: esc, confirmDialog }) {
     return {
         onUser(user) {
             stop(); uid = user ? user.uid : null; secret = null;
-            if (!uid) return;
+            if (!uid) { try { window.PesaTrackApp && PesaTrackApp.clearConfig(); } catch {} return; }
             start(); render();
         }
     };

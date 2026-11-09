@@ -70,3 +70,7 @@ node_modules/
 
 # Local AI tooling
 skills-lock.json
+
+android/.gradle/
+android/build/
+android/app/build/
