@@ -6,8 +6,16 @@ android {
         applicationId = "app.pesatrack"
         minSdk = 24
         targetSdk = 34
-        versionCode = 2
-        versionName = "0.2"
+        versionCode = 3
+        versionName = "0.3"
+    }
+    signingConfigs {
+        getByName("debug") {
+            storeFile = file("debug.keystore")   // fixed key, so new builds install over old ones
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
     }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
 }
