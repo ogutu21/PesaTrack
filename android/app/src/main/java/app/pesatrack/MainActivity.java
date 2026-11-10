@@ -49,7 +49,37 @@ public class MainActivity extends Activity {
         new Thread(() -> Sender.flush(getApplicationContext())).start();   // send anything that was waiting for a connection
     }
 
+    // ---------- fingerprint / face unlock for the app lock ----------
+    private void reply(final String id, final boolean ok) {
+        final String js = "(function(){var m=window.__pesaBio,f=m&&m[\"" + id + "\"];if(f){delete m[\"" + id + "\"];f(" + ok + ");}})()";
+        web.post(() -> web.evaluateJavascript(js, null));
+    }
+
+    private void promptBiometric(final String id) {
+        if (Build.VERSION.SDK_INT < 28) { reply(id, false); return; }
+        try {
+            android.hardware.biometrics.BiometricPrompt prompt = new android.hardware.biometrics.BiometricPrompt.Builder(this)
+                    .setTitle("Unlock PesaTrack")
+                    .setNegativeButton("Use PIN", getMainExecutor(), (d, w) -> reply(id, false))
+                    .build();
+            prompt.authenticate(new android.os.CancellationSignal(), getMainExecutor(),
+                    new android.hardware.biometrics.BiometricPrompt.AuthenticationCallback() {
+                        @Override public void onAuthenticationSucceeded(android.hardware.biometrics.BiometricPrompt.AuthenticationResult r) { reply(id, true); }
+                        @Override public void onAuthenticationError(int code, CharSequence msg) { reply(id, false); }
+                    });
+        } catch (Exception e) { reply(id, false); }
+    }
+
     final class Bridge {
+        @JavascriptInterface public boolean biometricAvailable() {
+            if (Build.VERSION.SDK_INT < 29) return false;
+            android.hardware.biometrics.BiometricManager bm = getSystemService(android.hardware.biometrics.BiometricManager.class);
+            return bm != null && bm.canAuthenticate() == android.hardware.biometrics.BiometricManager.BIOMETRIC_SUCCESS;
+        }
+        @JavascriptInterface public void authenticate(final String id) {
+            if (id == null || !id.matches("[a-z0-9]{1,32}")) return;
+            runOnUiThread(() -> promptBiometric(id));
+        }
         @JavascriptInterface public void saveConfig(String uid, String apiKey, String secret, String project) {
             Sender.saveConfig(getApplicationContext(), uid, apiKey, secret, project);
         }

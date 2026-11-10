@@ -18,7 +18,18 @@ async function hashPin(pin, salt, iterations) {
 const loadCfg = uid => { try { return JSON.parse(localStorage.getItem(cfgKey(uid)) || "null"); } catch { return null; } };
 const saveCfg = (uid, cfg) => localStorage.setItem(cfgKey(uid), JSON.stringify(cfg));
 
+// Inside the Android app the phone's own fingerprint prompt is used (web fingerprint is not available in an app window).
+const nativeBio = () => !!(window.PesaTrackApp && typeof window.PesaTrackApp.biometricAvailable === "function");
+function nativePrompt() {
+    return new Promise(resolve => {
+        const id = "b" + Math.random().toString(36).slice(2, 12);
+        (window.__pesaBio ||= {})[id] = resolve;
+        try { window.PesaTrackApp.authenticate(id); } catch { delete window.__pesaBio[id]; resolve(false); }
+    });
+}
+
 async function biometricAvailable() {
+    if (nativeBio()) { try { return !!window.PesaTrackApp.biometricAvailable(); } catch { return false; } }
     try { return !!window.PublicKeyCredential && await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable(); }
     catch { return false; }
 }
@@ -109,7 +120,8 @@ export function initAppLock({ $, toast, confirmDialog, escapeHTML: esc, logout }
         if (!cfg?.credId || cooldown() > 0 || bioBusy) return;
         bioBusy = true;
         try {
-            await navigator.credentials.get({ publicKey: { challenge: rand(32), userVerification: "required", timeout: 60000,
+            if (nativeBio()) { if (!(await nativePrompt())) throw new Error("not recognised"); }
+            else await navigator.credentials.get({ publicKey: { challenge: rand(32), userVerification: "required", timeout: 60000,
                 allowCredentials: [{ type: "public-key", id: fromB64(cfg.credId), transports: ["internal"] }] } });
             unlock();
         } catch {
@@ -192,13 +204,15 @@ export function initAppLock({ $, toast, confirmDialog, escapeHTML: esc, logout }
     async function enableBiometric() {
         bioBusy = true;
         try {
-            const cred = await navigator.credentials.create({ publicKey: {
+            const cred = nativeBio() ? null : await navigator.credentials.create({ publicKey: {
                 challenge: rand(32), rp: { name: "PesaTrack", id: location.hostname },
                 user: { id: rand(16), name: user?.email || uid, displayName: user?.displayName || "PesaTrack user" },
                 pubKeyCredParams: [{ type: "public-key", alg: -7 }, { type: "public-key", alg: -257 }],
                 authenticatorSelection: { authenticatorAttachment: "platform", userVerification: "required", residentKey: "discouraged" },
                 timeout: 60000, attestation: "none" } });
-            cfg.credId = toB64(cred.rawId); saveCfg(uid, cfg);
+            if (nativeBio()) { if (!(await nativePrompt())) throw new Error("cancelled"); cfg.credId = "app"; }
+            else cfg.credId = toB64(cred.rawId);
+            saveCfg(uid, cfg);
             toast("Fingerprint unlock is on", "success");
             return true;
         } catch {
