@@ -40,7 +40,9 @@ if (app) {
                 window.location.href = "index.html";
             } catch (err) {
                 console.error("Google sign-in:", err);
-                if (box) { box.textContent = MESSAGES[err.message] || MESSAGES.failed; box.style.display = "block"; }
+                if (box) { const known = MESSAGES[err.message];
+                    const detail = String(err.message).startsWith("failed:") ? String(err.message).slice(7, 160) : (err.code || err.message || "");
+                    box.textContent = known || (MESSAGES.failed + (detail ? " (" + String(detail).slice(0, 160) + ")" : "")); box.style.display = "block"; }
             }
         }, true);
     }
