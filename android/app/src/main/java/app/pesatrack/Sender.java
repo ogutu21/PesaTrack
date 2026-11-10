@@ -2,16 +2,24 @@ package app.pesatrack;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.List;
+import java.util.Locale;
+import java.util.TimeZone;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-// Sends M-Pesa SMS text to the user's private PesaTrack inbox (the same one MacroDroid would use).
-// Messages that can't be sent (no signal) wait in a small queue and go out next time.
+// Handles M-Pesa SMS. When PesaTrack has handed this app your sign-in, each message is read here and saved straight to
+// your transactions (no need to open the app). Otherwise it goes to the private inbox, as before.
+// Messages that can't be handled yet (no signal) wait in a small queue and are retried.
 final class Sender {
     private static final String PREFS = "pesatrack";
     private static final int MAX_QUEUE = 50;
@@ -19,17 +27,30 @@ final class Sender {
 
     private static SharedPreferences prefs(Context c) { return c.getSharedPreferences(PREFS, Context.MODE_PRIVATE); }
 
+    // ---------- settings handed over by the PesaTrack page ----------
     static void saveConfig(Context c, String uid, String apiKey, String secret, String project) {
         prefs(c).edit().putString("uid", uid).putString("key", apiKey).putString("secret", secret).putString("project", project).apply();
     }
 
-    static void clearConfig(Context c) { prefs(c).edit().remove("uid").remove("key").remove("secret").remove("project").remove("queue").apply(); }
+    static void saveAuth(Context c, String refreshToken) {
+        if (refreshToken == null || refreshToken.isEmpty()) return;
+        String old = prefs(c).getString("refresh", null);
+        if (refreshToken.equals(old)) return;
+        prefs(c).edit().putString("refresh", refreshToken).remove("idtoken").remove("idexp").apply();
+    }
+
+    static void clearConfig(Context c) {
+        prefs(c).edit().remove("uid").remove("key").remove("secret").remove("project").remove("refresh").remove("idtoken").remove("idexp").remove("queue").apply();
+    }
 
     static boolean configured(Context c) {
         SharedPreferences p = prefs(c);
         return p.getString("uid", null) != null && p.getString("secret", null) != null;
     }
 
+    private static boolean hasAuth(Context c) { return prefs(c).getString("refresh", null) != null; }
+
+    // ---------- queue ----------
     static synchronized void enqueue(Context c, String text) {
         if (!configured(c)) return;   // automatic capture is off: drop it, nothing is stored
         try {
@@ -48,37 +69,136 @@ final class Sender {
             JSONArray keep = new JSONArray();
             for (int i = 0; i < q.length(); i++) {
                 String text = q.getString(i);
-                int code = post(c, text);
-                if (code != 200 && code != 400) keep.put(text);   // keep for later on network errors or refusals; drop only success or a malformed message
+                if (!handle(c, text)) keep.put(text);
             }
             prefs(c).edit().putString("queue", keep.toString()).apply();
         } catch (Exception ignored) {}
     }
 
-    // returns the HTTP status, or -1 when there is no connection
-    private static int post(Context c, String text) {
+    // true = finished with this message, false = try again later
+    private static boolean handle(Context c, String text) {
+        if (hasAuth(c)) {
+            List<MpesaParser.Item> items = MpesaParser.parse(text);
+            if (items.isEmpty()) return true;   // not a transaction we understand (Fuliza notice, reversal, other text)
+            boolean allDone = true;
+            for (MpesaParser.Item it : items) {
+                int code = create(c, it.id, txFields(it.id, it.description, it.amount, it.type, it.category, it.date));
+                if (code == 200) Notifier.captured(c, it);
+                else if (code != 409 && code != 400) { allDone = false; continue; }   // 409 = already added, 400 = can't be saved; both are finished
+                if (it.fee > 0 && (code == 200 || code == 409)) {
+                    int fc = create(c, it.id + "-fee", txFields(it.id + "-fee", "M-Pesa fee (" + (it.code == null ? "SMS" : it.code) + ")", it.fee, "expense", "Fees & Charges", it.date));
+                    if (fc != 200 && fc != 409 && fc != 400) allDone = false;
+                }
+            }
+            if (allDone) return true;
+            if (hasAuth(c)) return false;       // network or temporary problem: retry later
+            // the saved sign-in stopped working: fall through to the inbox
+        }
+        int code = postInbox(c, text);
+        return code == 200 || code == 400;
+    }
+
+    // ---------- direct write to the user's transactions ----------
+    private static JSONObject txFields(String id, String description, double amount, String type, String category, String date) {
+        try {
+            SimpleDateFormat f = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US);
+            f.setTimeZone(TimeZone.getTimeZone("UTC"));
+            JSONObject fields = new JSONObject()
+                    .put("id", sv(id)).put("description", sv(description))
+                    .put("amount", new JSONObject().put("doubleValue", amount))
+                    .put("type", sv(type)).put("category", sv(category)).put("date", sv(date))
+                    .put("createdAt", sv(f.format(new Date())));
+            return new JSONObject().put("fields", fields);
+        } catch (Exception e) { return null; }
+    }
+
+    private static JSONObject sv(String s) throws Exception { return new JSONObject().put("stringValue", s); }
+
+    // creates users/{uid}/transactions/{docId}; never overwrites. Returns the HTTP status, or -1 when it could not be sent.
+    private static int create(Context c, String docId, JSONObject body) {
+        if (body == null) return 400;
+        SharedPreferences p = prefs(c);
+        String project = p.getString("project", "pesatrack-92632");
+        for (int attempt = 0; attempt < 2; attempt++) {
+            String token = token(c, attempt == 1);
+            if (token == null) return -1;
+            try {
+                String url = "https://firestore.googleapis.com/v1/projects/" + project + "/databases/(default)/documents/users/"
+                        + p.getString("uid", "") + "/transactions?documentId=" + URLEncoder.encode(docId, "UTF-8");
+                int code = send(url, body.toString(), "Bearer " + token, project);
+                if (code == 401 && attempt == 0) continue;   // token went stale, get a new one and retry once
+                return code;
+            } catch (Exception e) { return -1; }
+        }
+        return -1;
+    }
+
+    // a current sign-in token, or null (offline, or the saved sign-in no longer works and was dropped)
+    private static String token(Context c, boolean force) {
+        SharedPreferences p = prefs(c);
+        String cached = p.getString("idtoken", null);
+        if (!force && cached != null && System.currentTimeMillis() < p.getLong("idexp", 0) - 60000) return cached;
+        String refresh = p.getString("refresh", null);
+        if (refresh == null) return null;
+        try {
+            String project = p.getString("project", "pesatrack-92632");
+            URL url = new URL("https://securetoken.googleapis.com/v1/token?key=" + URLEncoder.encode(p.getString("key", ""), "UTF-8"));
+            byte[] form = ("grant_type=refresh_token&refresh_token=" + URLEncoder.encode(refresh, "UTF-8")).getBytes(StandardCharsets.UTF_8);
+            HttpURLConnection h = open(url, "application/x-www-form-urlencoded", project);
+            try (OutputStream o = h.getOutputStream()) { o.write(form); }
+            int code = h.getResponseCode();
+            if (code == 200) {
+                JSONObject j = new JSONObject(read(h.getInputStream()));
+                h.disconnect();
+                String id = j.getString("id_token");
+                long ttl = Long.parseLong(j.optString("expires_in", "3600"));
+                p.edit().putString("idtoken", id).putLong("idexp", System.currentTimeMillis() + ttl * 1000)
+                        .putString("refresh", j.optString("refresh_token", refresh)).apply();
+                return id;
+            }
+            h.disconnect();
+            if (code == 400 || code == 401) p.edit().remove("refresh").remove("idtoken").remove("idexp").apply();   // revoked or invalid
+        } catch (Exception ignored) {}
+        return null;
+    }
+
+    // ---------- fallback: the private inbox (needs no sign-in) ----------
+    private static int postInbox(Context c, String text) {
         SharedPreferences p = prefs(c);
         try {
             String project = p.getString("project", "pesatrack-92632");
             String url = "https://firestore.googleapis.com/v1/projects/" + project + "/databases/(default)/documents/users/"
                     + p.getString("uid", "") + "/inbox?key=" + URLEncoder.encode(p.getString("key", ""), "UTF-8");
-            JSONObject fields = new JSONObject()
-                    .put("text", new JSONObject().put("stringValue", text))
-                    .put("secret", new JSONObject().put("stringValue", p.getString("secret", "")));
-            byte[] body = new JSONObject().put("fields", fields).toString().getBytes(StandardCharsets.UTF_8);
-            HttpURLConnection h = (HttpURLConnection) new URL(url).openConnection();
-            h.setRequestMethod("POST");
-            h.setConnectTimeout(15000);
-            h.setReadTimeout(15000);
-            h.setDoOutput(true);
-            h.setRequestProperty("Content-Type", "application/json; charset=utf-8");
-            h.setRequestProperty("Referer", "https://" + project + ".web.app/");   // needed if the API key is restricted by website
-            try (OutputStream o = h.getOutputStream()) { o.write(body); }
-            int code = h.getResponseCode();
-            h.disconnect();
-            return code;
-        } catch (Exception e) {
-            return -1;
-        }
+            JSONObject fields = new JSONObject().put("text", sv(text)).put("secret", sv(p.getString("secret", "")));
+            return send(url, new JSONObject().put("fields", fields).toString(), null, project);
+        } catch (Exception e) { return -1; }
+    }
+
+    // ---------- http ----------
+    private static HttpURLConnection open(URL url, String contentType, String project) throws Exception {
+        HttpURLConnection h = (HttpURLConnection) url.openConnection();
+        h.setRequestMethod("POST");
+        h.setConnectTimeout(15000);
+        h.setReadTimeout(15000);
+        h.setDoOutput(true);
+        h.setRequestProperty("Content-Type", contentType);
+        h.setRequestProperty("Referer", "https://" + project + ".web.app/");   // needed if the API key is restricted by website
+        return h;
+    }
+
+    private static int send(String url, String json, String authorization, String project) throws Exception {
+        HttpURLConnection h = open(new URL(url), "application/json; charset=utf-8", project);
+        if (authorization != null) h.setRequestProperty("Authorization", authorization);
+        try (OutputStream o = h.getOutputStream()) { o.write(json.getBytes(StandardCharsets.UTF_8)); }
+        int code = h.getResponseCode();
+        h.disconnect();
+        return code;
+    }
+
+    private static String read(InputStream in) throws Exception {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        byte[] buf = new byte[4096]; int n;
+        while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+        return out.toString("UTF-8");
     }
 }

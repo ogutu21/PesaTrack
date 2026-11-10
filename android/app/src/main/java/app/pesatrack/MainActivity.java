@@ -36,8 +36,12 @@ public class MainActivity extends Activity {
             }
         });
         if (state != null) web.restoreState(state); else web.loadUrl(HOME);
-        if (Build.VERSION.SDK_INT >= 23 && checkSelfPermission(Manifest.permission.RECEIVE_SMS) != PackageManager.PERMISSION_GRANTED)
-            requestPermissions(new String[] { Manifest.permission.RECEIVE_SMS }, 1);
+        if (Build.VERSION.SDK_INT >= 23) {
+            java.util.ArrayList<String> need = new java.util.ArrayList<>();
+            if (checkSelfPermission(Manifest.permission.RECEIVE_SMS) != PackageManager.PERMISSION_GRANTED) need.add(Manifest.permission.RECEIVE_SMS);
+            if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission("android.permission.POST_NOTIFICATIONS") != PackageManager.PERMISSION_GRANTED) need.add("android.permission.POST_NOTIFICATIONS");
+            if (!need.isEmpty()) requestPermissions(need.toArray(new String[0]), 1);
+        }
     }
 
     @Override protected void onResume() {
@@ -49,6 +53,7 @@ public class MainActivity extends Activity {
         @JavascriptInterface public void saveConfig(String uid, String apiKey, String secret, String project) {
             Sender.saveConfig(getApplicationContext(), uid, apiKey, secret, project);
         }
+        @JavascriptInterface public void saveAuth(String refreshToken) { Sender.saveAuth(getApplicationContext(), refreshToken); }
         @JavascriptInterface public void clearConfig() { Sender.clearConfig(getApplicationContext()); }
     }
 
