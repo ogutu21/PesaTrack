@@ -7,6 +7,19 @@ import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.CancellationSignal;
+import androidx.credentials.Credential;
+import androidx.credentials.CredentialManager;
+import androidx.credentials.CredentialManagerCallback;
+import androidx.credentials.CustomCredential;
+import androidx.credentials.GetCredentialRequest;
+import androidx.credentials.GetCredentialResponse;
+import androidx.credentials.exceptions.GetCredentialCancellationException;
+import androidx.credentials.exceptions.GetCredentialException;
+import androidx.credentials.exceptions.NoCredentialException;
+import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption;
+import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential;
+import org.json.JSONObject;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
@@ -70,7 +83,45 @@ public class MainActivity extends Activity {
         } catch (Exception e) { reply(id, false); }
     }
 
+    // ---------- Google sign-in with the phone's own account sheet ----------
+    private void replyGoogle(final String id, String token, String error) {
+        try {
+            JSONObject o = new JSONObject().put("token", token == null ? JSONObject.NULL : token).put("error", error == null ? JSONObject.NULL : error);
+            final String js = "(function(){var m=window.__pesaGoogle,f=m&&m[\"" + id + "\"];if(f){delete m[\"" + id + "\"];f(" + o + ");}})()";
+            web.post(() -> web.evaluateJavascript(js, null));
+        } catch (Exception ignored) {}
+    }
+
+    private void startGoogleSignIn(final String webClientId, final String id) {
+        try {
+            CredentialManager manager = CredentialManager.create(this);
+            GetCredentialRequest request = new GetCredentialRequest.Builder()
+                    .addCredentialOption(new GetSignInWithGoogleOption.Builder(webClientId).build()).build();
+            manager.getCredentialAsync(this, request, new CancellationSignal(), command -> runOnUiThread(command),
+                    new CredentialManagerCallback<GetCredentialResponse, GetCredentialException>() {
+                        @Override public void onResult(GetCredentialResponse result) {
+                            try {
+                                Credential c = result.getCredential();
+                                if (c instanceof CustomCredential && GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL.equals(c.getType())) {
+                                    replyGoogle(id, GoogleIdTokenCredential.createFrom(((CustomCredential) c).getData()).getIdToken(), null);
+                                    return;
+                                }
+                            } catch (Exception ignored) {}
+                            replyGoogle(id, null, "failed");
+                        }
+                        @Override public void onError(GetCredentialException e) {
+                            replyGoogle(id, null, e instanceof GetCredentialCancellationException ? "cancelled"
+                                    : e instanceof NoCredentialException ? "no-account" : "failed");
+                        }
+                    });
+        } catch (Exception e) { replyGoogle(id, null, "failed"); }
+    }
+
     final class Bridge {
+        @JavascriptInterface public void googleSignIn(final String webClientId, final String id) {
+            if (id == null || !id.matches("[a-z0-9]{1,32}") || webClientId == null || !webClientId.matches("[0-9]+-[A-Za-z0-9_-]+\\.apps\\.googleusercontent\\.com")) return;
+            runOnUiThread(() -> startGoogleSignIn(webClientId, id));
+        }
         @JavascriptInterface public boolean biometricAvailable() {
             if (Build.VERSION.SDK_INT < 29) return false;
             android.hardware.biometrics.BiometricManager bm = getSystemService(android.hardware.biometrics.BiometricManager.class);
