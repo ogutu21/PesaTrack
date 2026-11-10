@@ -107,14 +107,18 @@ public class MainActivity extends Activity {
                                     return;
                                 }
                             } catch (Exception ignored) {}
-                            replyGoogle(id, null, "failed");
+                            replyGoogle(id, null, "failed:unexpected result");
                         }
                         @Override public void onError(GetCredentialException e) {
+                            android.util.Log.w("PesaTrack", "Google sign-in error: " + e.getType() + " / " + e.getMessage());
                             replyGoogle(id, null, e instanceof GetCredentialCancellationException ? "cancelled"
-                                    : e instanceof NoCredentialException ? "no-account" : "failed");
+                                    : e instanceof NoCredentialException ? "no-account" : "failed:" + e.getType() + " " + e.getMessage());
                         }
                     });
-        } catch (Exception e) { replyGoogle(id, null, "failed"); }
+        } catch (Exception e) {
+            android.util.Log.w("PesaTrack", "Google sign-in start error", e);
+            replyGoogle(id, null, "failed:" + e);
+        }
     }
 
     final class Bridge {
