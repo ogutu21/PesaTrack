@@ -98,6 +98,7 @@ final class Sender {
 
     // true = finished with this message, false = try again later
     private static boolean handle(Context c, String text) {
+        android.util.Log.i("PesaTrack", "handle: signedInForDirectSave=" + hasAuth(c) + ", items=" + MpesaParser.parse(text).size() + ", transfers=" + MpesaParser.parseTransfers(text).size());
         if (hasAuth(c)) {
             List<MpesaParser.Item> items = MpesaParser.parse(text);
             List<MpesaParser.Transfer> transfers = MpesaParser.parseTransfers(text);
@@ -110,6 +111,7 @@ final class Sender {
             }
             for (MpesaParser.Item it : items) {
                 int code = create(c, it.id, txFields(it.id, it.description, it.amount, it.type, it.category, it.date));
+                android.util.Log.i("PesaTrack", "save result=" + code + " (-1 means no connection)");
                 if ((code == 200 || code == -1) && firstTime(c, it.id)) Notifier.captured(c, it, code == -1);   // offline: told right away, saved when the internet is back
                 if (code != 200 && code != 409 && code != 400) { allDone = false; continue; }   // 409 = already added, 400 = can't be saved; both are finished
                 if (it.fee > 0 && (code == 200 || code == 409)) {
@@ -122,6 +124,7 @@ final class Sender {
             // the saved sign-in stopped working: fall through to the inbox
         }
         int code = postInbox(c, text);
+        android.util.Log.i("PesaTrack", "inbox result=" + code);
         return code == 200 || code == 400;
     }
 

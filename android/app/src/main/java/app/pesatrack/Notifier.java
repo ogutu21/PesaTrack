@@ -29,7 +29,11 @@ final class Notifier {
 
     private static void show(Context c, int id, String title, String text) {
         try {
-            if (Build.VERSION.SDK_INT >= 33 && c.checkSelfPermission("android.permission.POST_NOTIFICATIONS") != PackageManager.PERMISSION_GRANTED) return;
+            if (Build.VERSION.SDK_INT >= 33 && c.checkSelfPermission("android.permission.POST_NOTIFICATIONS") != PackageManager.PERMISSION_GRANTED) {
+                android.util.Log.w("PesaTrack", "notification skipped: permission not granted");
+                return;
+            }
+            android.util.Log.i("PesaTrack", "showing notification: " + title);
             NotificationManager nm = (NotificationManager) c.getSystemService(Context.NOTIFICATION_SERVICE);
             if (nm == null) return;
             Notification.Builder b;
