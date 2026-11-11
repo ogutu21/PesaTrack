@@ -30,6 +30,7 @@ import android.webkit.WebViewClient;
 public class MainActivity extends Activity {
     private static final String HOME = "https://pesatrack-92632.web.app/";
     private WebView web;
+    private volatile boolean trusted = false;   // true only while one of our own pages is showing
 
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
@@ -38,13 +39,22 @@ public class MainActivity extends Activity {
         WebSettings s = web.getSettings();
         s.setJavaScriptEnabled(true);
         s.setDomStorageEnabled(true);   // sign-in and the offline cache live here
+        s.setAllowFileAccess(false);
+        s.setAllowContentAccess(false);
+        s.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
+        WebView.setWebContentsDebuggingEnabled(false);
         web.addJavascriptInterface(new Bridge(), "PesaTrackApp");   // only pages from the allowed hosts below can ever be loaded
         web.setWebViewClient(new WebViewClient() {
+            @Override public void onPageStarted(WebView v, String url, android.graphics.Bitmap icon) {
+                trusted = isOurs(Uri.parse(url));
+            }
             @Override public boolean shouldOverrideUrlLoading(WebView v, WebResourceRequest r) {
                 Uri u = r.getUrl();
-                String host = u.getHost() == null ? "" : u.getHost();
-                if (host.equals("pesatrack-92632.web.app") || host.equals("pesatrack-92632.firebaseapp.com")) return false;
-                startActivity(new Intent(Intent.ACTION_VIEW, u));   // anything else opens in the browser
+                if (isOurs(u)) return false;
+                String scheme = u.getScheme() == null ? "" : u.getScheme();
+                if (scheme.equals("https") || scheme.equals("http")) {   // other websites open in the browser; nothing else is opened
+                    try { startActivity(new Intent(Intent.ACTION_VIEW, u)); } catch (Exception ignored) {}
+                }
                 return true;
             }
         });
@@ -55,6 +65,11 @@ public class MainActivity extends Activity {
             if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission("android.permission.POST_NOTIFICATIONS") != PackageManager.PERMISSION_GRANTED) need.add("android.permission.POST_NOTIFICATIONS");
             if (!need.isEmpty()) requestPermissions(need.toArray(new String[0]), 1);
         }
+    }
+
+    private static boolean isOurs(Uri u) {
+        String host = u.getHost() == null ? "" : u.getHost();
+        return "https".equals(u.getScheme()) && (host.equals("pesatrack-92632.web.app") || host.equals("pesatrack-92632.firebaseapp.com"));
     }
 
     @Override protected void onResume() {
@@ -123,23 +138,24 @@ public class MainActivity extends Activity {
 
     final class Bridge {
         @JavascriptInterface public void googleSignIn(final String webClientId, final String id) {
-            if (id == null || !id.matches("[a-z0-9]{1,32}") || webClientId == null || !webClientId.matches("[0-9]+-[A-Za-z0-9_-]+\\.apps\\.googleusercontent\\.com")) return;
+            if (!trusted || id == null || !id.matches("[a-z0-9]{1,32}") || webClientId == null || !webClientId.matches("[0-9]+-[A-Za-z0-9_-]+\\.apps\\.googleusercontent\\.com")) return;
             runOnUiThread(() -> startGoogleSignIn(webClientId, id));
         }
         @JavascriptInterface public boolean biometricAvailable() {
-            if (Build.VERSION.SDK_INT < 29) return false;
+            if (!trusted || Build.VERSION.SDK_INT < 29) return false;
             android.hardware.biometrics.BiometricManager bm = getSystemService(android.hardware.biometrics.BiometricManager.class);
             return bm != null && bm.canAuthenticate() == android.hardware.biometrics.BiometricManager.BIOMETRIC_SUCCESS;
         }
         @JavascriptInterface public void authenticate(final String id) {
-            if (id == null || !id.matches("[a-z0-9]{1,32}")) return;
+            if (!trusted || id == null || !id.matches("[a-z0-9]{1,32}")) return;
             runOnUiThread(() -> promptBiometric(id));
         }
         @JavascriptInterface public void saveConfig(String uid, String apiKey, String secret, String project) {
+            if (!trusted) return;
             Sender.saveConfig(getApplicationContext(), uid, apiKey, secret, project);
         }
-        @JavascriptInterface public void saveAuth(String refreshToken) { Sender.saveAuth(getApplicationContext(), refreshToken); }
-        @JavascriptInterface public void clearConfig() { Sender.clearConfig(getApplicationContext()); }
+        @JavascriptInterface public void saveAuth(String refreshToken) { if (trusted) Sender.saveAuth(getApplicationContext(), refreshToken); }
+        @JavascriptInterface public void clearConfig() { if (trusted) Sender.clearConfig(getApplicationContext()); }
     }
 
     @Override protected void onSaveInstanceState(Bundle out) { super.onSaveInstanceState(out); web.saveState(out); }

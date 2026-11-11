@@ -23,24 +23,29 @@ import org.json.JSONObject;
 final class Sender {
     private static final String PREFS = "pesatrack";
     private static final int MAX_QUEUE = 50;
+    private static final String PROJECT = "pesatrack-92632";   // fixed: a web page can never point this app at another project
     private Sender() {}
 
     private static SharedPreferences prefs(Context c) { return c.getSharedPreferences(PREFS, Context.MODE_PRIVATE); }
 
     // ---------- settings handed over by the PesaTrack page ----------
+    // Values come from the web page, so they are checked before they are kept.
     static void saveConfig(Context c, String uid, String apiKey, String secret, String project) {
-        prefs(c).edit().putString("uid", uid).putString("key", apiKey).putString("secret", secret).putString("project", project).apply();
+        if (uid == null || !uid.matches("[A-Za-z0-9]{10,64}")) return;
+        if (apiKey == null || !apiKey.matches("AIza[0-9A-Za-z_-]{30,50}")) return;
+        if (secret == null || !secret.matches("[0-9a-f]{32,64}")) return;
+        prefs(c).edit().putString("uid", uid).putString("key", apiKey).putString("secret", secret).apply();
     }
 
     static void saveAuth(Context c, String refreshToken) {
-        if (refreshToken == null || refreshToken.isEmpty()) return;
+        if (refreshToken == null || refreshToken.length() > 4096 || !refreshToken.matches("[A-Za-z0-9._~+/=-]{20,}")) return;
         String old = prefs(c).getString("refresh", null);
         if (refreshToken.equals(old)) return;
         prefs(c).edit().putString("refresh", refreshToken).remove("idtoken").remove("idexp").apply();
     }
 
     static void clearConfig(Context c) {
-        prefs(c).edit().remove("uid").remove("key").remove("secret").remove("project").remove("refresh").remove("idtoken").remove("idexp").remove("queue").apply();
+        prefs(c).edit().remove("uid").remove("key").remove("secret").remove("refresh").remove("idtoken").remove("idexp").remove("queue").apply();
     }
 
     static boolean configured(Context c) {
@@ -111,7 +116,7 @@ final class Sender {
     private static int saveSavings(Context c, MpesaParser.Transfer t) {
         lastSavingsChanged = false;
         SharedPreferences p = prefs(c);
-        String project = p.getString("project", "pesatrack-92632");
+        String project = PROJECT;
         String docPath = "projects/" + project + "/databases/(default)/documents/users/" + p.getString("uid", "") + "/savings/" + t.account;
         for (int attempt = 0; attempt < 2; attempt++) {
             String token = token(c, attempt == 1);
@@ -171,7 +176,7 @@ final class Sender {
     private static int create(Context c, String docId, JSONObject body) {
         if (body == null) return 400;
         SharedPreferences p = prefs(c);
-        String project = p.getString("project", "pesatrack-92632");
+        String project = PROJECT;
         for (int attempt = 0; attempt < 2; attempt++) {
             String token = token(c, attempt == 1);
             if (token == null) return -1;
@@ -194,7 +199,7 @@ final class Sender {
         String refresh = p.getString("refresh", null);
         if (refresh == null) return null;
         try {
-            String project = p.getString("project", "pesatrack-92632");
+            String project = PROJECT;
             URL url = new URL("https://securetoken.googleapis.com/v1/token?key=" + URLEncoder.encode(p.getString("key", ""), "UTF-8"));
             byte[] form = ("grant_type=refresh_token&refresh_token=" + URLEncoder.encode(refresh, "UTF-8")).getBytes(StandardCharsets.UTF_8);
             HttpURLConnection h = open(url, "application/x-www-form-urlencoded", project);
@@ -219,7 +224,7 @@ final class Sender {
     private static int postInbox(Context c, String text) {
         SharedPreferences p = prefs(c);
         try {
-            String project = p.getString("project", "pesatrack-92632");
+            String project = PROJECT;
             String url = "https://firestore.googleapis.com/v1/projects/" + project + "/databases/(default)/documents/users/"
                     + p.getString("uid", "") + "/inbox?key=" + URLEncoder.encode(p.getString("key", ""), "UTF-8");
             JSONObject fields = new JSONObject().put("text", sv(text)).put("secret", sv(p.getString("secret", "")));

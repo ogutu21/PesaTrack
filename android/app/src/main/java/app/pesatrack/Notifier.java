@@ -39,7 +39,10 @@ final class Notifier {
                 b = new Notification.Builder(c);
             }
             PendingIntent open = PendingIntent.getActivity(c, 0, new Intent(c, MainActivity.class), PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+            Notification.Builder pub = Build.VERSION.SDK_INT >= 26 ? new Notification.Builder(c, CHANNEL) : new Notification.Builder(c);
+            pub.setSmallIcon(R.drawable.ic_stat).setContentTitle("PesaTrack").setContentText("New M-Pesa activity");   // what shows on a locked screen
             b.setSmallIcon(R.drawable.ic_stat).setContentTitle(title).setContentText(text)
+                    .setVisibility(Notification.VISIBILITY_PRIVATE).setPublicVersion(pub.build())
                     .setContentIntent(open).setAutoCancel(true);
             nm.notify(id, b.build());
         } catch (Exception ignored) {}

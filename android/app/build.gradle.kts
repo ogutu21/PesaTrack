@@ -6,8 +6,8 @@ android {
         applicationId = "app.pesatrack"
         minSdk = 24
         targetSdk = 34
-        versionCode = 9
-        versionName = "0.7"
+        versionCode = 10
+        versionName = "0.8"
     }
     signingConfigs {
         getByName("debug") {
@@ -15,6 +15,21 @@ android {
             storePassword = "android"
             keyAlias = "androiddebugkey"
             keyPassword = "android"
+        }
+    }
+    signingConfigs {
+        create("release") {
+            storeFile = file("debug.keystore")   // same key as before, so the release build installs over the old app
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+    buildTypes {
+        release {
+            signingConfig = signingConfigs.getByName("release")
+            isDebuggable = false   // a debuggable app lets anyone with a USB cable read its saved data
+            isMinifyEnabled = false
         }
     }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
