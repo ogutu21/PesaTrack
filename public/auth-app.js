@@ -3,7 +3,7 @@
 import { GoogleAuthProvider, signInWithCredential } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
 import { auth } from "./firebase-config.js";
 
-const WEB_CLIENT_ID = "227171165751-rla4bhallpngg256ok97t5vidnjf5mpn.apps.googleusercontent.com";
+const WEB_CLIENT_ID = "227171165751-bljd608u860p45bbq66k3jmu6e1g42pt.apps.googleusercontent.com";
 const app = window.PesaTrackApp;
 
 const MESSAGES = {
