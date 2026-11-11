@@ -15,15 +15,16 @@ final class Notifier {
     private static final String CHANNEL = "captured";
     private Notifier() {}
 
-    static void savings(Context c, MpesaParser.Transfer t) {
+    static void savings(Context c, MpesaParser.Transfer t, boolean pending) {
         String name = t.account.equals("mshwari") ? "M-Shwari" : "KCB M-PESA";
         String moved = String.format(Locale.US, "Ksh %,.2f", t.amount) + (t.dir.equals("in") ? " saved" : " withdrawn");
-        show(c, ("sv" + t.code).hashCode(), name + " balance updated", String.format(Locale.US, "Balance Ksh %,.2f · ", t.balance) + moved);
+        show(c, ("sv" + t.code).hashCode(), name + " balance updated", String.format(Locale.US, "Balance Ksh %,.2f · ", t.balance) + moved + (pending ? " · syncing when online" : ""));
     }
 
-    static void captured(Context c, MpesaParser.Item it) {
+    static void captured(Context c, MpesaParser.Item it, boolean pending) {
         String amount = String.format(Locale.US, it.amount == Math.floor(it.amount) ? "%,.0f" : "%,.2f", it.amount);
-        show(c, it.id.hashCode(), "Added to PesaTrack", it.description + " · Ksh " + amount + " · " + it.category);
+        show(c, it.id.hashCode(), pending ? "Saved on your phone" : "Added to PesaTrack",
+                it.description + " · Ksh " + amount + " · " + it.category + (pending ? " · syncing when online" : ""));
     }
 
     private static void show(Context c, int id, String title, String text) {

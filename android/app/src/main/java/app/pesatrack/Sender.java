@@ -67,6 +67,21 @@ final class Sender {
         } catch (Exception ignored) {}
     }
 
+    static boolean hasQueue(Context c) {
+        try { return new JSONArray(prefs(c).getString("queue", "[]")).length() > 0; } catch (Exception e) { return false; }
+    }
+
+    // true the first time it is called for this key: stops a second notification when a waiting message is finally sent
+    private static boolean firstTime(Context c, String key) {
+        SharedPreferences p = prefs(c);
+        java.util.Set<String> seen = new java.util.HashSet<>(p.getStringSet("notified", new java.util.HashSet<String>()));
+        if (seen.contains(key)) return false;
+        if (seen.size() > 300) seen.clear();
+        seen.add(key);
+        p.edit().putStringSet("notified", seen).apply();
+        return true;
+    }
+
     static synchronized void flush(Context c) {
         if (!configured(c)) return;
         try {
@@ -77,6 +92,7 @@ final class Sender {
                 if (!handle(c, text)) keep.put(text);
             }
             prefs(c).edit().putString("queue", keep.toString()).apply();
+            if (keep.length() > 0) RetryJobService.schedule(c);   // wake up when the internet is back
         } catch (Exception ignored) {}
     }
 
@@ -89,13 +105,13 @@ final class Sender {
             boolean allDone = true;
             for (MpesaParser.Transfer tr : transfers) {
                 int sc = saveSavings(c, tr);
-                if (sc == 200) { if (lastSavingsChanged) Notifier.savings(c, tr); }
-                else if (sc != 400) allDone = false;
+                if ((sc == 200 && lastSavingsChanged || sc == -1) && firstTime(c, "sv" + tr.code)) Notifier.savings(c, tr, sc == -1);
+                if (sc != 200 && sc != 400) allDone = false;
             }
             for (MpesaParser.Item it : items) {
                 int code = create(c, it.id, txFields(it.id, it.description, it.amount, it.type, it.category, it.date));
-                if (code == 200) Notifier.captured(c, it);
-                else if (code != 409 && code != 400) { allDone = false; continue; }   // 409 = already added, 400 = can't be saved; both are finished
+                if ((code == 200 || code == -1) && firstTime(c, it.id)) Notifier.captured(c, it, code == -1);   // offline: told right away, saved when the internet is back
+                if (code != 200 && code != 409 && code != 400) { allDone = false; continue; }   // 409 = already added, 400 = can't be saved; both are finished
                 if (it.fee > 0 && (code == 200 || code == 409)) {
                     int fc = create(c, it.id + "-fee", txFields(it.id + "-fee", "M-Pesa fee (" + (it.code == null ? "SMS" : it.code) + ")", it.fee, "expense", "Fees & Charges", it.date));
                     if (fc != 200 && fc != 409 && fc != 400) allDone = false;
