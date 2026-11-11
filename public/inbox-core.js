@@ -2,14 +2,16 @@
 import { parseMpesa } from "./mpesa.js";
 
 // docs: [{ id, text }]
-// deps: { exists(txId) -> Promise<boolean>, save(tx) -> Promise, remove(docId) -> Promise }
+// deps: { exists(txId) -> Promise<boolean>, save(tx) -> Promise, remove(docId) -> Promise, saveTransfer(t) -> Promise }
+// A "transfer" is a move to or from your own M-Shwari / KCB M-PESA savings: it updates a balance, not your income or spending.
 // Messages that can't be read (Fuliza notices, other texts) are removed; a message that fails to save is kept for next time.
 export async function processInbox(docs, deps, now = new Date().toISOString()) {
-    const out = { added: 0, duplicates: 0, unreadable: 0, failed: 0 };
+    const out = { added: 0, duplicates: 0, unreadable: 0, failed: 0, transfers: 0 };
     for (const d of docs) {
         try {
-            const { items } = parseMpesa(String(d.text || ""));
-            if (!items.length) { out.unreadable++; await deps.remove(d.id); continue; }
+            const { items, transfers } = parseMpesa(String(d.text || ""));
+            if (!items.length && !transfers.length) { out.unreadable++; await deps.remove(d.id); continue; }
+            for (const t of transfers) { if (deps.saveTransfer) await deps.saveTransfer(t); out.transfers++; }
             for (const it of items) {
                 if (await deps.exists(it.id)) { out.duplicates++; continue; }
                 await deps.save({ id: it.id, description: it.description, amount: it.amount, type: it.type, category: it.category, date: it.date, createdAt: now });

@@ -79,8 +79,14 @@ final class Sender {
     private static boolean handle(Context c, String text) {
         if (hasAuth(c)) {
             List<MpesaParser.Item> items = MpesaParser.parse(text);
-            if (items.isEmpty()) return true;   // not a transaction we understand (Fuliza notice, reversal, other text)
+            List<MpesaParser.Transfer> transfers = MpesaParser.parseTransfers(text);
+            if (items.isEmpty() && transfers.isEmpty()) return true;   // not a message we understand (Fuliza notice, reversal, other text)
             boolean allDone = true;
+            for (MpesaParser.Transfer tr : transfers) {
+                int sc = saveSavings(c, tr);
+                if (sc == 200) { if (lastSavingsChanged) Notifier.savings(c, tr); }
+                else if (sc != 400) allDone = false;
+            }
             for (MpesaParser.Item it : items) {
                 int code = create(c, it.id, txFields(it.id, it.description, it.amount, it.type, it.category, it.date));
                 if (code == 200) Notifier.captured(c, it);
@@ -96,6 +102,53 @@ final class Sender {
         }
         int code = postInbox(c, text);
         return code == 200 || code == 400;
+    }
+
+    // ---------- savings balances (M-Shwari, KCB M-PESA) ----------
+    private static boolean lastSavingsChanged;
+
+    // Saves users/{uid}/savings/{account} unless a newer message already set it. Returns 200 when finished, else a failure code (-1 = offline).
+    private static int saveSavings(Context c, MpesaParser.Transfer t) {
+        lastSavingsChanged = false;
+        SharedPreferences p = prefs(c);
+        String project = p.getString("project", "pesatrack-92632");
+        String docPath = "projects/" + project + "/databases/(default)/documents/users/" + p.getString("uid", "") + "/savings/" + t.account;
+        for (int attempt = 0; attempt < 2; attempt++) {
+            String token = token(c, attempt == 1);
+            if (token == null) return -1;
+            try {
+                // is there already a newer balance?
+                HttpURLConnection g = (HttpURLConnection) new URL("https://firestore.googleapis.com/v1/" + docPath).openConnection();
+                g.setConnectTimeout(15000); g.setReadTimeout(15000);
+                g.setRequestProperty("Authorization", "Bearer " + token);
+                g.setRequestProperty("Referer", "https://" + project + ".web.app/");
+                int gc = g.getResponseCode();
+                if (gc == 401 && attempt == 0) { g.disconnect(); continue; }
+                if (gc == 200) {
+                    String existing = new JSONObject(read(g.getInputStream())).getJSONObject("fields").getJSONObject("asOf").getString("stringValue");
+                    g.disconnect();
+                    if (existing.compareTo(t.asOf) > 0) return 200;   // a later message already updated it
+                } else {
+                    g.disconnect();
+                    if (gc != 404) return gc;
+                }
+                SimpleDateFormat f = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US);
+                f.setTimeZone(TimeZone.getTimeZone("UTC"));
+                JSONObject fields = new JSONObject()
+                        .put("balance", new JSONObject().put("doubleValue", t.balance))
+                        .put("asOf", sv(t.asOf))
+                        .put("lastAmount", new JSONObject().put("doubleValue", t.amount))
+                        .put("lastDir", sv(t.dir)).put("lastDate", sv(t.date))
+                        .put("updatedAt", sv(f.format(new Date())));
+                JSONObject write = new JSONObject().put("update", new JSONObject().put("name", docPath).put("fields", fields));
+                String body = new JSONObject().put("writes", new JSONArray().put(write)).toString();
+                int code = send("https://firestore.googleapis.com/v1/projects/" + project + "/databases/(default)/documents:commit", body, "Bearer " + token, project);
+                if (code == 401 && attempt == 0) continue;
+                if (code == 200) lastSavingsChanged = true;
+                return code;
+            } catch (Exception e) { return -1; }
+        }
+        return -1;
     }
 
     // ---------- direct write to the user's transactions ----------

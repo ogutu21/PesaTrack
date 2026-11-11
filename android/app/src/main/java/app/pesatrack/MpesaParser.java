@@ -18,6 +18,12 @@ final class MpesaParser {
         double amount, fee;
     }
 
+    /** A move to or from your own M-Shwari / KCB M-PESA savings. Updates a balance; it is not income or spending. */
+    static final class Transfer {
+        String code, account, dir, date, asOf;   // account: "mshwari" | "kcb"; dir: "in" (into savings) | "out"
+        double amount, balance;
+    }
+
     private static final int CI = Pattern.CASE_INSENSITIVE;
     private static final String AMOUNT = "Ksh\\.?\\s?([\\d,]+(?:\\.\\d{1,2})?)";
     private static final String DATE = "(\\d{1,2})/(\\d{1,2})/(\\d{2,4})";
@@ -145,6 +151,40 @@ final class MpesaParser {
         it.category = kind.equals("airtime") ? "Airtime & Data" : kind.equals("withdraw") ? "Other" : guessCategory(party, type);
         it.id = code != null ? "mpesa-" + code : "mpesa-h" + hash(body);
         return it;
+    }
+
+    private static Transfer parseTransfer(String code, String body) {
+        String acct = "(M-?Shwari|KCB\\s+M-?PESA)";
+        String tail = "\\s+account\\s+on\\s+" + DATE;
+        Matcher m = match(AMOUNT + "\\s+transfer{1,2}ed\\s+(to|from)\\s+(?:your\\s+)?" + acct + tail, body);
+        if (m == null) m = match("transfer{1,2}ed\\s+" + AMOUNT + "\\s+(to|from)\\s+(?:your\\s+)?" + acct + tail, body);
+        if (m == null) return null;
+        String account = find("shwari", m.group(3)) ? "mshwari" : "kcb";
+        String date = toISODate(m.group(4), m.group(5), m.group(6));
+        if (date == null) return null;
+        String balRe = account.equals("mshwari")
+                ? "M-?Shwari(?:\\s+saving)?(?:\\s+account)?\\s+balance\\s+is\\s+" + AMOUNT
+                : "KCB\\s+M-?PESA(?:\\s+Saving)?(?:\\s+account)?\\s+balance\\s+is\\s+" + AMOUNT;
+        Matcher b = match(balRe, body);
+        if (b == null) return null;
+        int hh = 0, mm = 0;
+        Matcher tm = Pattern.compile("\\bat\\s+(\\d{1,2}):(\\d{2})\\s*(AM|PM)", CI).matcher(body);
+        if (tm.find()) { hh = Integer.parseInt(tm.group(1)) % 12 + (tm.group(3).equalsIgnoreCase("pm") ? 12 : 0); mm = Integer.parseInt(tm.group(2)); }
+        Transfer t = new Transfer();
+        t.code = code; t.account = account; t.dir = m.group(2).equalsIgnoreCase("to") ? "in" : "out";
+        t.amount = toNumber(m.group(1)); t.balance = toNumber(b.group(1)); t.date = date;
+        t.asOf = String.format(Locale.ROOT, "%sT%02d:%02d", date, hh, mm);
+        return t;
+    }
+
+    static List<Transfer> parseTransfers(String text) {
+        List<Transfer> out = new ArrayList<>();
+        Set<String> seen = new LinkedHashSet<>();
+        for (String[] msg : splitMessages(text == null ? "" : text)) {
+            Transfer t = parseTransfer(msg[0], msg[1]);
+            if (t != null && seen.add("T" + (msg[0] != null ? msg[0] : msg[1]))) out.add(t);
+        }
+        return out;
     }
 
     static List<Item> parse(String text) {

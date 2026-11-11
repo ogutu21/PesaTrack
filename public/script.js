@@ -21,6 +21,7 @@ import { initHousehold } from "./household.js";
 import { initAttention } from "./attention.js";
 import { initHome } from "./home.js";
 import { initInbox } from "./inbox.js";
+import { initSavings } from "./savings.js";
 
 let transactions = [];
 let currentUser = null;
@@ -910,6 +911,7 @@ document.addEventListener("keydown", e => { if (e.key === "Escape" && quickAdd.c
 // ---------- app lock (PIN / fingerprint) ----------
 const appLock = initAppLock({ $, toast, confirmDialog, escapeHTML, logout });
 const inbox = initInbox({ $, toast, confirmDialog, escapeHTML });
+const savings = initSavings({ $, escapeHTML, formatCurrency });
 
 // ---------- auth + live data ----------
 function updateUserInformation() {
@@ -1078,6 +1080,7 @@ initBackup({ $, toast, confirmDialog, openOverlay, escapeHTML, localToday, getTr
 onAuthStateChanged(auth, user => {
     appLock.onUser(user);
     inbox.onUser(user);
+    savings.onUser(user);
     stopData();
     if (!user) {
         window.location.href = "auth.html";

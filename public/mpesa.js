@@ -75,7 +75,32 @@ function splitMessages(text) {
     }));
 }
 
+// Moves between your M-Pesa and your own M-Shwari / KCB M-PESA savings. Not income or spending: they update a savings balance.
+function parseTransfer(body, code) {
+    const ACCT = "(M-?Shwari|KCB\\s+M-?PESA)";
+    const tail = "\\s+account\\s+on\\s+" + DATE;
+    const m = body.match(new RegExp(AMOUNT + "\\s+transfer{1,2}ed\\s+(to|from)\\s+(?:your\\s+)?" + ACCT + tail, "i"))
+        || body.match(new RegExp("transfer{1,2}ed\\s+" + AMOUNT + "\\s+(to|from)\\s+(?:your\\s+)?" + ACCT + tail, "i"));
+    if (!m) return null;
+    const account = /shwari/i.test(m[3]) ? "mshwari" : "kcb";
+    const date = toISODate(m[4], m[5], m[6]);
+    const balRe = account === "mshwari"
+        ? "M-?Shwari(?:\\s+saving)?(?:\\s+account)?\\s+balance\\s+is\\s+" + AMOUNT
+        : "KCB\\s+M-?PESA(?:\\s+Saving)?(?:\\s+account)?\\s+balance\\s+is\\s+" + AMOUNT;
+    const b = body.match(new RegExp(balRe, "i"));
+    if (!date) return { skip: "No date found" };
+    if (!b) return { skip: "No savings balance found" };
+    const tm = body.match(/\bat\s+(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+    let hh = 0, mm = 0;
+    if (tm) { hh = Number(tm[1]) % 12 + (/pm/i.test(tm[3]) ? 12 : 0); mm = Number(tm[2]); }
+    const asOf = `${date}T${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
+    return { transfer: { code, account, dir: /^to$/i.test(m[2]) ? "in" : "out", amount: toNumber(m[1]), balance: toNumber(b[1]), date, asOf } };
+}
+
 function parseOne({ code, body }) {
+    const tr = parseTransfer(body, code);
+    if (tr) return tr.skip ? { skip: tr.skip } : { transfer: tr.transfer };
+
     const when = body.match(new RegExp(DATE));
     const date = when ? toISODate(when[1], when[2], when[3]) : null;
     const feeMatch = body.match(new RegExp("Transaction cost,?\\s*" + AMOUNT, "i"));
@@ -121,13 +146,18 @@ function parseOne({ code, body }) {
     return { item: { id, code, kind, type, amount, fee, date, description, category } };
 }
 
-// Returns { items: [...], skipped: [{ reason, text }] }
+// Returns { items: [...], transfers: [...], skipped: [{ reason, text }] }
+// transfers = moves to/from your own M-Shwari or KCB M-PESA savings (balances, not income or spending)
 export function parseMpesa(text) {
-    const items = [], skipped = [], seen = new Set();
+    const items = [], transfers = [], skipped = [], seen = new Set();
     for (const msg of splitMessages(String(text || ""))) {
         const r = parseOne(msg);
         if (r.skip) skipped.push({ reason: r.skip, text: msg.body.slice(0, 80) });
+        else if (r.transfer) {
+            const key = "T" + (r.transfer.code || msg.body);
+            if (!seen.has(key)) { seen.add(key); transfers.push(r.transfer); skipped.push({ reason: "Savings transfer (not counted as spending)", text: msg.body.slice(0, 80) }); }
+        }
         else if (!seen.has(r.item.id)) { seen.add(r.item.id); items.push(r.item); }
     }
-    return { items, skipped };
+    return { items, transfers, skipped };
 }

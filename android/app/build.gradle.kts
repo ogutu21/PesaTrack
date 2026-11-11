@@ -6,8 +6,8 @@ android {
         applicationId = "app.pesatrack"
         minSdk = 24
         targetSdk = 34
-        versionCode = 8
-        versionName = "0.6.1"
+        versionCode = 9
+        versionName = "0.7"
     }
     signingConfigs {
         getByName("debug") {

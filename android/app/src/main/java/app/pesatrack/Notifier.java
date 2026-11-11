@@ -15,7 +15,18 @@ final class Notifier {
     private static final String CHANNEL = "captured";
     private Notifier() {}
 
+    static void savings(Context c, MpesaParser.Transfer t) {
+        String name = t.account.equals("mshwari") ? "M-Shwari" : "KCB M-PESA";
+        String moved = String.format(Locale.US, "Ksh %,.2f", t.amount) + (t.dir.equals("in") ? " saved" : " withdrawn");
+        show(c, ("sv" + t.code).hashCode(), name + " balance updated", String.format(Locale.US, "Balance Ksh %,.2f · ", t.balance) + moved);
+    }
+
     static void captured(Context c, MpesaParser.Item it) {
+        String amount = String.format(Locale.US, it.amount == Math.floor(it.amount) ? "%,.0f" : "%,.2f", it.amount);
+        show(c, it.id.hashCode(), "Added to PesaTrack", it.description + " · Ksh " + amount + " · " + it.category);
+    }
+
+    private static void show(Context c, int id, String title, String text) {
         try {
             if (Build.VERSION.SDK_INT >= 33 && c.checkSelfPermission("android.permission.POST_NOTIFICATIONS") != PackageManager.PERMISSION_GRANTED) return;
             NotificationManager nm = (NotificationManager) c.getSystemService(Context.NOTIFICATION_SERVICE);
@@ -27,12 +38,10 @@ final class Notifier {
             } else {
                 b = new Notification.Builder(c);
             }
-            String amount = String.format(Locale.US, it.amount == Math.floor(it.amount) ? "%,.0f" : "%,.2f", it.amount);
             PendingIntent open = PendingIntent.getActivity(c, 0, new Intent(c, MainActivity.class), PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
-            b.setSmallIcon(R.drawable.ic_stat).setContentTitle("Added to PesaTrack")
-                    .setContentText(it.description + " · Ksh " + amount + " · " + it.category)
+            b.setSmallIcon(R.drawable.ic_stat).setContentTitle(title).setContentText(text)
                     .setContentIntent(open).setAutoCancel(true);
-            nm.notify(it.id.hashCode(), b.build());
+            nm.notify(id, b.build());
         } catch (Exception ignored) {}
     }
 }

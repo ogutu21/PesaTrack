@@ -1,0 +1,12 @@
+/* Savings card (M-Shwari, KCB M-PESA balances) */
+.savings { margin: 0 0 26px; padding: 18px 20px; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; }
+.savings[hidden] { display: none; }
+.savings-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 0 0 6px; }
+.savings-head h3 { margin: 0; font-size: 16px; font-weight: 600; color: var(--muted); }
+.savings-head strong { font-size: 22px; font-weight: 700; color: var(--text); }
+.savings-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0; border-top: 1px solid var(--line); }
+.savings-row:first-child { border-top: none; }
+.savings-row > div { display: flex; flex-direction: column; min-width: 0; }
+.savings-name { font-size: 15px; font-weight: 600; color: var(--text); }
+.savings-row small { font-size: 12px; color: var(--muted); }
+.savings-row > strong { font-size: 16px; font-weight: 600; color: var(--text); white-space: nowrap; }
