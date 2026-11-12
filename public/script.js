@@ -22,6 +22,7 @@ import { initAttention } from "./attention.js";
 import { initHome } from "./home.js";
 import { initInbox } from "./inbox.js";
 import { initSavings } from "./savings.js";
+import { initPayees } from "./payees.js";
 
 let transactions = [];
 let currentUser = null;
@@ -912,6 +913,7 @@ document.addEventListener("keydown", e => { if (e.key === "Escape" && quickAdd.c
 const appLock = initAppLock({ $, toast, confirmDialog, escapeHTML, logout });
 const inbox = initInbox({ $, toast, confirmDialog, escapeHTML });
 const savings = initSavings({ $, escapeHTML, formatCurrency });
+const payees = initPayees();
 
 // ---------- auth + live data ----------
 function updateUserInformation() {
@@ -1036,6 +1038,7 @@ function startData() {
         currentUser.uid,
         list => {
             transactions = list;
+            if (!workspace.id) payees.onTransactions(list);   // learn your categories (personal space only)
             if (!monthDecided) {
                 // First load: show "All time" if this month is empty but older data exists.
                 monthDecided = true;
@@ -1081,6 +1084,7 @@ onAuthStateChanged(auth, user => {
     appLock.onUser(user);
     inbox.onUser(user);
     savings.onUser(user);
+    payees.onUser(user);
     stopData();
     if (!user) {
         window.location.href = "auth.html";

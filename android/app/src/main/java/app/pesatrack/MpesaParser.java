@@ -53,6 +53,16 @@ final class MpesaParser {
     private static final Pattern[] RULE_PATTERNS = new Pattern[RULES.length];
     static { for (int i = 0; i < RULES.length; i++) RULE_PATTERNS[i] = Pattern.compile((String) RULES[i][1], CI); }
 
+    /** Same as payeeKey() in public/payee-core.js: "Paid to NAIVAS" -> "out naivas". "" when there is no named payee. */
+    static String payeeKey(String description, String type) {
+        Matcher m = Pattern.compile("^(sent to|paid to|received from)\\s+(.+)$", CI).matcher(description == null ? "" : description);
+        if (!m.find()) return "";
+        String name = m.group(2).toLowerCase(java.util.Locale.ROOT).replaceAll("[^a-z0-9]+", " ").trim();
+        if (name.length() > 40) name = name.substring(0, 40).trim();
+        if (name.isEmpty()) return "";
+        return ("income".equals(type) ? "in " : "out ") + name;
+    }
+
     static String guessCategory(String name, String type) {
         String n = name == null ? "" : name;
         if (type.equals("income")) {

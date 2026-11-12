@@ -109,7 +109,10 @@ final class Sender {
                 if ((sc == 200 && lastSavingsChanged || sc == -1) && firstTime(c, "sv" + tr.code)) Notifier.savings(c, tr, sc == -1);
                 if (sc != 200 && sc != 400) allDone = false;
             }
+            JSONObject learned = items.isEmpty() ? new JSONObject() : payeeMap(c);   // categories you chose before for the same payee
             for (MpesaParser.Item it : items) {
+                String key = MpesaParser.payeeKey(it.description, it.type);
+                if (!key.isEmpty() && learned.has(key)) it.category = learned.optString(key, it.category);
                 int code = create(c, it.id, txFields(it.id, it.description, it.amount, it.type, it.category, it.date));
                 android.util.Log.i("PesaTrack", "save result=" + code + " (-1 means no connection)");
                 if ((code == 200 || code == -1) && firstTime(c, it.id)) Notifier.captured(c, it, code == -1);   // offline: told right away, saved when the internet is back
@@ -126,6 +129,46 @@ final class Sender {
         int code = postInbox(c, text);
         android.util.Log.i("PesaTrack", "inbox result=" + code);
         return code == 200 || code == 400;
+    }
+
+    // ---------- payee memory ----------
+    // users/{uid}/settings/payees holds { map: { "out naivas": "Groceries", ... } }, kept up to date by the website.
+    // Returns the latest copy, or the last one saved on the phone when offline.
+    private static JSONObject payeeMap(Context c) {
+        SharedPreferences p = prefs(c);
+        JSONObject cached = new JSONObject();
+        try { cached = new JSONObject(p.getString("payees", "{}")); } catch (Exception ignored) {}
+        String project = PROJECT;
+        for (int attempt = 0; attempt < 2; attempt++) {
+            String token = token(c, attempt == 1);
+            if (token == null) return cached;
+            try {
+                HttpURLConnection g = (HttpURLConnection) new URL("https://firestore.googleapis.com/v1/projects/" + project
+                        + "/databases/(default)/documents/users/" + p.getString("uid", "") + "/settings/payees").openConnection();
+                g.setConnectTimeout(10000); g.setReadTimeout(10000);
+                g.setRequestProperty("Authorization", "Bearer " + token);
+                g.setRequestProperty("Referer", "https://" + project + ".web.app/");
+                int gc = g.getResponseCode();
+                if (gc == 401 && attempt == 0) { g.disconnect(); continue; }
+                if (gc == 200) {
+                    JSONObject fields = new JSONObject(read(g.getInputStream())).optJSONObject("fields");
+                    g.disconnect();
+                    JSONObject out = new JSONObject();
+                    JSONObject m = fields == null ? null : fields.optJSONObject("map");
+                    JSONObject mf = m == null || m.optJSONObject("mapValue") == null ? null : m.getJSONObject("mapValue").optJSONObject("fields");
+                    if (mf != null) {
+                        java.util.Iterator<String> keys = mf.keys();
+                        while (keys.hasNext()) { String k = keys.next(); String v = mf.getJSONObject(k).optString("stringValue", ""); if (!v.isEmpty()) out.put(k, v); }
+                    }
+                    p.edit().putString("payees", out.toString()).apply();
+                    return out;
+                }
+                g.disconnect();
+                if (gc == 404) { p.edit().putString("payees", "{}").apply(); return new JSONObject(); }
+                return cached;
+            } catch (Exception e) { return cached; }
+        }
+        return cached;
     }
 
     // ---------- savings balances (M-Shwari, KCB M-PESA) ----------

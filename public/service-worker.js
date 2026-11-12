@@ -1,8 +1,8 @@
 // Offline-capable app shell. Bump VERSION when you add files to SHELL.
-const VERSION = "pesatrack-v24"; /* nocache */ /* google-app */
+const VERSION = "pesatrack-v25"; /* nocache */ /* google-app */
 const SHELL = [
     "/", "/index.html", "/auth.html", "/auth-app.js", "/style.css", "/script.js",
-    "/firestore.js", "/firebase-config.js", "/mpesa.js", "/charts.js", "/features.js", "/categories.js", "/applock.js", "/currency.js", "/report.js", "/backup.js", "/household.js", "/recurrence.js", "/attention.js", "/statement.js", "/statement-pdf.js", "/statement-ui.js", "/inbox.js", "/inbox-core.js", "/savings.js", "/savings.css", "/refine.css", "/home.js", "/dashboard.css", "/manifest.json",
+    "/firestore.js", "/firebase-config.js", "/mpesa.js", "/charts.js", "/features.js", "/categories.js", "/applock.js", "/currency.js", "/report.js", "/backup.js", "/household.js", "/recurrence.js", "/attention.js", "/statement.js", "/statement-pdf.js", "/statement-ui.js", "/inbox.js", "/inbox-core.js", "/savings.js", "/payees.js", "/payee-core.js", "/savings.css", "/refine.css", "/home.js", "/dashboard.css", "/manifest.json",
     "/icons/icon-192.png", "/icons/icon-512.png"
 ];
 

@@ -28,6 +28,7 @@ export function initInbox({ $, toast, escapeHTML: esc, confirmDialog }) {
                     if (cur.exists() && String(cur.data().asOf || "") > t.asOf) return;
                     await setDoc(ref, { balance: t.balance, asOf: t.asOf, lastAmount: t.amount, lastDir: t.dir, lastDate: t.date, updatedAt: new Date().toISOString() });
                 },
+                payees: async () => { const s = await getDoc(doc(db, "users", uid, "settings", "payees")); return s.exists() ? (s.data().map || {}) : {}; },
                 remove: id => deleteDoc(doc(db, "users", uid, "inbox", id))
             });
             if (r.added) toast(`${addedMessage(r)} (in your personal space)`, "success");

@@ -22,12 +22,13 @@ service cloud.firestore {
     }
 
     function validSetting(docId, data) {
-      return data.keys().hasOnly(['limits', 'items', 'base', 'rates', 'secret', 'updatedAt'])
+      return data.keys().hasOnly(['limits', 'items', 'base', 'rates', 'secret', 'map', 'updatedAt'])   // payees-v1
         && (
           (docId == 'budgets' && data.limits is map && data.limits.size() <= 100)
           || (docId in ['goals', 'recurring', 'categories', 'households']
               && data.items is list && data.items.size() <= 200)
           || (docId == 'ingest' && data.secret is string && data.secret.size() >= 32 && data.secret.size() <= 64)
+          || (docId == 'payees' && data.map is map && data.map.size() <= 200)
           || (docId == 'currency' && data.base is string && data.base.size() == 3
               && data.rates is map && data.rates.size() <= 50)
         );
