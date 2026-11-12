@@ -40,6 +40,15 @@
             "value": "camera=(), microphone=(), geolocation=(), payment=(), usb=(), bluetooth=()"
           }
         ]
+      },
+      {
+        "source": "**/*.@(js|mjs|css|html|json)",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
+        ]
       }
     ]
   },
