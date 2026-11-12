@@ -1,7 +1,7 @@
 // Automatic M-Pesa capture.
 // A phone automation app (MacroDroid, Tasker, iOS Shortcuts) posts each M-Pesa SMS into users/{uid}/inbox,
 // signed with a private key that only you can see. Here we read that inbox, add the transactions, and tidy up.
-import { app, db } from "./firebase-config.js";
+import { app, db, auth } from "./firebase-config.js";
 import { doc, getDoc, setDoc, deleteDoc, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
 import { processInbox, addedMessage } from "./inbox-core.js";
 
@@ -64,7 +64,7 @@ export function initInbox({ $, toast, escapeHTML: esc, confirmDialog }) {
         const el = ensureCard(); if (!el || !uid) return;
         try { const s = await getDoc(settingsRef()); secret = s.exists() ? s.data().secret : null; } catch { secret = null; }
         const inApp = !!window.PesaTrackApp;
-        try { if (inApp) { secret ? PesaTrackApp.saveConfig(uid, app.options.apiKey, secret, app.options.projectId) : PesaTrackApp.clearConfig(); } } catch {}
+        try { if (inApp) { if (secret) { PesaTrackApp.saveConfig(uid, app.options.apiKey, secret, app.options.projectId); if (auth.currentUser && PesaTrackApp.saveAuth) PesaTrackApp.saveAuth(auth.currentUser.refreshToken); } else PesaTrackApp.clearConfig(); } } catch {}
         const head = `<div class="card-header"><div><h3>Automatic M-Pesa capture</h3><p>Add transactions as soon as the M-Pesa SMS arrives.</p></div></div>`;
         if (!secret) {
             el.innerHTML = `${head}<p class="ingest-note">A free automation app on your phone sends each M-Pesa message to your private PesaTrack inbox. PesaTrack adds it the next time you open the app, or straight away if it's open.</p>
