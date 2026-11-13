@@ -30,6 +30,7 @@ import android.webkit.WebViewClient;
 public class MainActivity extends Activity {
     private static final String HOME = "https://pesatrack-92632.web.app/";
     private WebView web;
+    private android.webkit.ValueCallback<Uri[]> chooser;   // the file picker the page asked for
     private volatile boolean trusted = false;   // true only while one of our own pages is showing
 
     @Override protected void onCreate(Bundle state) {
@@ -44,6 +45,16 @@ public class MainActivity extends Activity {
         s.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
         WebView.setWebContentsDebuggingEnabled(false);
         web.addJavascriptInterface(new Bridge(), "PesaTrackApp");   // only pages from the allowed hosts below can ever be loaded
+        web.setWebChromeClient(new android.webkit.WebChromeClient() {   // "Choose file" buttons (statement import, restore backup)
+            @Override public boolean onShowFileChooser(WebView v, android.webkit.ValueCallback<Uri[]> cb, FileChooserParams p) {
+                if (!trusted) { cb.onReceiveValue(null); return true; }
+                if (chooser != null) chooser.onReceiveValue(null);
+                chooser = cb;
+                try { startActivityForResult(p.createIntent(), 77); }
+                catch (Exception e) { chooser = null; cb.onReceiveValue(null); }
+                return true;
+            }
+        });
         web.setWebViewClient(new WebViewClient() {
             @Override public void onPageStarted(WebView v, String url, android.graphics.Bitmap icon) {
                 trusted = isOurs(Uri.parse(url));
@@ -65,6 +76,15 @@ public class MainActivity extends Activity {
             if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission("android.permission.POST_NOTIFICATIONS") != PackageManager.PERMISSION_GRANTED) need.add("android.permission.POST_NOTIFICATIONS");
             if (!need.isEmpty()) requestPermissions(need.toArray(new String[0]), 1);
         }
+    }
+
+    @Override protected void onActivityResult(int req, int res, Intent data) {
+        if (req == 77) {
+            if (chooser != null) chooser.onReceiveValue(android.webkit.WebChromeClient.FileChooserParams.parseResult(res, data));
+            chooser = null;
+            return;
+        }
+        super.onActivityResult(req, res, data);
     }
 
     private static boolean isOurs(Uri u) {
