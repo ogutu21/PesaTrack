@@ -171,6 +171,35 @@ final class Sender {
         return cached;
     }
 
+    // ---------- monthly summary ----------
+    static boolean signedIn(Context c) { return hasAuth(c); }
+
+    // All of your transactions dated from `start` (inclusive) to `end` (exclusive), as Firestore's JSON answer; null when it couldn't be fetched.
+    static String queryMonth(Context c, String start, String end) {
+        SharedPreferences p = prefs(c);
+        String project = PROJECT;
+        for (int attempt = 0; attempt < 2; attempt++) {
+            String token = token(c, attempt == 1);
+            if (token == null) return null;
+            try {
+                String q = "{\"structuredQuery\":{\"from\":[{\"collectionId\":\"transactions\"}],\"where\":{\"compositeFilter\":{\"op\":\"AND\",\"filters\":["
+                        + "{\"fieldFilter\":{\"field\":{\"fieldPath\":\"date\"},\"op\":\"GREATER_THAN_OR_EQUAL\",\"value\":{\"stringValue\":\"" + start + "\"}}},"
+                        + "{\"fieldFilter\":{\"field\":{\"fieldPath\":\"date\"},\"op\":\"LESS_THAN\",\"value\":{\"stringValue\":\"" + end + "\"}}}]}},\"limit\":5000}}";
+                URL url = new URL("https://firestore.googleapis.com/v1/projects/" + project + "/databases/(default)/documents/users/" + p.getString("uid", "") + ":runQuery");
+                HttpURLConnection h = open(url, "application/json; charset=utf-8", project);
+                h.setRequestProperty("Authorization", "Bearer " + token);
+                try (OutputStream o = h.getOutputStream()) { o.write(q.getBytes(StandardCharsets.UTF_8)); }
+                int code = h.getResponseCode();
+                if (code == 401 && attempt == 0) { h.disconnect(); continue; }
+                if (code != 200) { h.disconnect(); return null; }
+                String body = read(h.getInputStream());
+                h.disconnect();
+                return body;
+            } catch (Exception e) { return null; }
+        }
+        return null;
+    }
+
     // ---------- savings balances (M-Shwari, KCB M-PESA) ----------
     private static boolean lastSavingsChanged;
 

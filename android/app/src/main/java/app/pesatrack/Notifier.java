@@ -28,6 +28,15 @@ final class Notifier {
     }
 
     private static void show(Context c, int id, String title, String text) {
+        show(c, id, title, text, CHANNEL, "Captured M-Pesa transactions", "New M-Pesa activity");
+    }
+
+    // last month's totals
+    static void summary(Context c, String title, String text) {
+        show(c, ("summary" + title).hashCode(), title, text, "summary", "Monthly summary", "Your monthly summary is ready");
+    }
+
+    private static void show(Context c, int id, String title, String text, String channel, String channelName, String lockText) {
         try {
             if (Build.VERSION.SDK_INT >= 33 && c.checkSelfPermission("android.permission.POST_NOTIFICATIONS") != PackageManager.PERMISSION_GRANTED) {
                 android.util.Log.w("PesaTrack", "notification skipped: permission not granted");
@@ -38,15 +47,15 @@ final class Notifier {
             if (nm == null) return;
             Notification.Builder b;
             if (Build.VERSION.SDK_INT >= 26) {
-                nm.createNotificationChannel(new NotificationChannel(CHANNEL, "Captured M-Pesa transactions", NotificationManager.IMPORTANCE_DEFAULT));
-                b = new Notification.Builder(c, CHANNEL);
+                nm.createNotificationChannel(new NotificationChannel(channel, channelName, NotificationManager.IMPORTANCE_DEFAULT));
+                b = new Notification.Builder(c, channel);
             } else {
                 b = new Notification.Builder(c);
             }
             PendingIntent open = PendingIntent.getActivity(c, 0, new Intent(c, MainActivity.class), PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
-            Notification.Builder pub = Build.VERSION.SDK_INT >= 26 ? new Notification.Builder(c, CHANNEL) : new Notification.Builder(c);
-            pub.setSmallIcon(R.drawable.ic_stat).setContentTitle("PesaTrack").setContentText("New M-Pesa activity");   // what shows on a locked screen
-            b.setSmallIcon(R.drawable.ic_stat).setContentTitle(title).setContentText(text)
+            Notification.Builder pub = Build.VERSION.SDK_INT >= 26 ? new Notification.Builder(c, channel) : new Notification.Builder(c);
+            pub.setSmallIcon(R.drawable.ic_stat).setContentTitle("PesaTrack").setContentText(lockText);   // what shows on a locked screen
+            b.setSmallIcon(R.drawable.ic_stat).setContentTitle(title).setContentText(text).setStyle(new Notification.BigTextStyle().bigText(text))
                     .setVisibility(Notification.VISIBILITY_PRIVATE).setPublicVersion(pub.build())
                     .setContentIntent(open).setAutoCancel(true);
             nm.notify(id, b.build());

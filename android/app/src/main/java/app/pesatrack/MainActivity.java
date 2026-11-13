@@ -76,6 +76,8 @@ public class MainActivity extends Activity {
             if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission("android.permission.POST_NOTIFICATIONS") != PackageManager.PERMISSION_GRANTED) need.add("android.permission.POST_NOTIFICATIONS");
             if (!need.isEmpty()) requestPermissions(need.toArray(new String[0]), 1);
         }
+        SummaryJobService.schedule(this);   // checks once a day whether last month's summary is due
+        if (getIntent().getBooleanExtra("summary_test", false)) new Thread(() -> MonthSummary.run(getApplicationContext(), true)).start();   // for testing: adb ... --ez summary_test true
     }
 
     @Override protected void onActivityResult(int req, int res, Intent data) {
