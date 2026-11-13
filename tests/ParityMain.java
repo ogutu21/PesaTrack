@@ -19,7 +19,8 @@ public class ParityMain {
             List<MpesaParser.Transfer> ts = MpesaParser.parseTransfers(msgs.get(i));
             for (int j = 0; j < ts.size(); j++) { MpesaParser.Transfer t = ts.get(j);
                 out.append(j > 0 ? "," : "").append("{\"code\":").append(q(t.code)).append(",\"account\":").append(q(t.account)).append(",\"dir\":").append(q(t.dir))
-                   .append(",\"amount\":").append(t.amount).append(",\"balance\":").append(t.balance).append(",\"date\":").append(q(t.date)).append(",\"asOf\":").append(q(t.asOf)).append("}"); }
+                   .append(",\"amount\":").append(t.amount).append(",\"balance\":").append(t.balance).append(",\"date\":").append(q(t.date)).append(",\"asOf\":").append(q(t.asOf))
+                   .append(",\"due\":").append(q(t.due)).append(",\"limit\":").append(t.limit == null ? "null" : t.limit.toString()).append(",\"fee\":").append(t.fee).append("}"); }
             out.append("]}");
         }
         System.out.println(out.append("]"));

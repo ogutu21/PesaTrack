@@ -23,13 +23,17 @@ export function initSavings({ $, escapeHTML: esc, formatCurrency: money }) {
     function render() {
         const el = ensureCard(); if (!el) return;
         const rows = ORDER.filter(k => docs[k] && typeof docs[k].balance === "number");
-        el.hidden = !rows.length;
-        if (!rows.length) return;
+        const fz = docs.fuliza, owed = fz && typeof fz.balance === "number" && fz.balance > 0 ? fz : null;   // Fuliza is money you owe, so it is not part of the savings total
+        el.hidden = !rows.length && !owed;
+        if (!rows.length && !owed) return;
         const total = rows.reduce((s, k) => s + docs[k].balance, 0);
-        el.innerHTML = `<div class="savings-head"><h3>Savings</h3><strong>${esc(money(total))}</strong></div>
+        const saved = rows.length ? `<div class="savings-head"><h3>Savings</h3><strong>${esc(money(total))}</strong></div>
             <div class="savings-rows">${rows.map(k => { const d = docs[k];
                 const move = d.lastAmount ? `${d.lastDir === "in" ? "Saved" : "Withdrew"} ${esc(money(d.lastAmount))}${d.lastDate ? " · " + esc(day(d.lastDate)) : ""}` : "";
-                return `<div class="savings-row"><div><span class="savings-name">${esc(NAMES[k])}</span><small>${move}</small></div><strong>${esc(money(d.balance))}</strong></div>`; }).join("")}</div>`;
+                return `<div class="savings-row"><div><span class="savings-name">${esc(NAMES[k])}</span><small>${move}</small></div><strong>${esc(money(d.balance))}</strong></div>`; }).join("")}</div>` : "";
+        const parts = [owed.due ? "Due " + day(owed.due) : "", typeof owed.limit === "number" ? money(owed.limit) + " still available" : ""].filter(Boolean);
+        const debt = owed ? `<div class="savings-debt"><div><span class="savings-name">Fuliza owed</span><small>${esc(parts.join(" · "))}</small></div><strong>${esc(money(owed.balance))}</strong></div>` : "";
+        el.innerHTML = saved + debt;
     }
 
     function stop() { if (unsub) unsub(); unsub = null; docs = {}; if (card) { card.hidden = true; } }

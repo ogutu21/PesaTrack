@@ -10,7 +10,8 @@ let items = 0, transfers = 0;
 corpus.forEach((text, i) => {
     const r = parseMpesa(text);
     const js = { items: r.items.map(({ id, code, kind, type, amount, fee, date, description, category }) => ({ id, code, kind, type, amount, fee, date, description, category })),
-                 transfers: r.transfers.map(({ code, account, dir, amount, balance, date, asOf }) => ({ code, account, dir, amount, balance, date, asOf })) };
+                 transfers: r.transfers.map(({ code, account, dir, amount, balance, date, asOf, due, limit, fee }) => ({ code, account, dir, amount, balance, date, asOf: account === "fuliza" ? asOf.slice(0, 10) : asOf, due: due ?? null, limit: limit ?? null, fee: fee ?? 0 })) };
+    java[i].transfers.forEach(t => { if (t.account === "fuliza") t.asOf = t.asOf.slice(0, 10); });   // Fuliza messages have no time: compare the day only
     items += js.items.length; transfers += js.transfers.length;
     assert.deepEqual(java[i], js, `message ${i}: ${text.slice(0, 60)}`);
 });

@@ -115,7 +115,7 @@ final class Sender {
                 if (!key.isEmpty() && learned.has(key)) it.category = learned.optString(key, it.category);
                 int code = create(c, it.id, txFields(it.id, it.description, it.amount, it.type, it.category, it.date));
                 android.util.Log.i("PesaTrack", "save result=" + code + " (-1 means no connection)");
-                if ((code == 200 || code == -1) && firstTime(c, it.id)) Notifier.captured(c, it, code == -1);   // offline: told right away, saved when the internet is back
+                if (!"fuliza-fee".equals(it.kind) && (code == 200 || code == -1) && firstTime(c, it.id)) Notifier.captured(c, it, code == -1);   // a Fuliza fee gets the Fuliza notification instead   // offline: told right away, saved when the internet is back
                 if (code != 200 && code != 409 && code != 400) { allDone = false; continue; }   // 409 = already added, 400 = can't be saved; both are finished
                 if (it.fee > 0 && (code == 200 || code == 409)) {
                     int fc = create(c, it.id + "-fee", txFields(it.id + "-fee", "M-Pesa fee (" + (it.code == null ? "SMS" : it.code) + ")", it.fee, "expense", "Fees & Charges", it.date));
@@ -236,6 +236,8 @@ final class Sender {
                         .put("lastAmount", new JSONObject().put("doubleValue", t.amount))
                         .put("lastDir", sv(t.dir)).put("lastDate", sv(t.date))
                         .put("updatedAt", sv(f.format(new Date())));
+                if (t.due != null) fields.put("due", sv(t.due));
+                if (t.limit != null) fields.put("limit", new JSONObject().put("doubleValue", t.limit.doubleValue()));
                 JSONObject write = new JSONObject().put("update", new JSONObject().put("name", docPath).put("fields", fields));
                 String body = new JSONObject().put("writes", new JSONArray().put(write)).toString();
                 int code = send("https://firestore.googleapis.com/v1/projects/" + project + "/databases/(default)/documents:commit", body, "Bearer " + token, project);

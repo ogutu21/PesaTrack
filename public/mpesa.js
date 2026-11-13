@@ -97,9 +97,45 @@ function parseTransfer(body, code) {
     return { transfer: { code, account, dir: /^to$/i.test(m[2]) ? "in" : "out", amount: toNumber(m[1]), balance: toNumber(b[1]), date, asOf } };
 }
 
+// Fuliza (M-Pesa overdraft). Borrowing is not new spending (the purchase has its own message) but the access fee is, and what you owe is tracked.
+// Repaying is not spending either (the money was spent when you borrowed it). These messages carry no date, so today's date is used.
+const pad2 = n => String(n).padStart(2, "0");
+function nowStamp() {
+    const d = new Date(), date = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+    return { date, asOf: `${date}T${pad2(d.getHours())}:${pad2(d.getMinutes())}` };
+}
+
+function parseFuliza(body, code) {
+    if (!/fuliza/i.test(body) || /(sent to|paid to|received)/i.test(body)) return null;
+    const { date, asOf } = nowStamp();
+    const lim = body.match(new RegExp("Available Fuliza M-?PESA limit is\\s+" + AMOUNT, "i"));
+    const dm = body.match(new RegExp("due on\\s+" + DATE, "i"));
+    const base = { code, account: "fuliza", date, asOf, due: dm ? toISODate(dm[1], dm[2], dm[3]) : null, limit: lim ? toNumber(lim[1]) : null, fee: 0 };
+    const rp = body.match(new RegExp(AMOUNT + "\\s+from your M-?PESA has been used to\\s+(?:(fully|partially)\\s+)?pay your outstanding Fuliza", "i"));
+    if (rp) {
+        let balance = 0;
+        if (!/^fully$/i.test(rp[2] || "")) {
+            const o = body.slice(rp.index + rp[0].length).match(new RegExp("outstanding[^.]*?\\bis\\s+" + AMOUNT, "i"));
+            if (!o) return null;
+            balance = toNumber(o[1]);
+        }
+        return { transfer: { ...base, dir: "in", amount: toNumber(rp[1]), balance } };
+    }
+    const dr = body.match(new RegExp("Fuliza M-?PESA amount is\\s+" + AMOUNT, "i"));
+    const out = body.match(new RegExp("Total Fuliza M-?PESA outstanding amount is\\s+" + AMOUNT, "i"));
+    if (!dr || !out) return null;
+    const fm = body.match(new RegExp("Access Fee charged\\s+" + AMOUNT, "i"));
+    const fee = fm ? toNumber(fm[1]) : 0;
+    const res = { transfer: { ...base, dir: "out", amount: toNumber(dr[1]), balance: toNumber(out[1]), fee } };
+    if (fee > 0) res.item = { id: `mpesa-${code}-fzfee`, code, kind: "fuliza-fee", type: "expense", amount: fee, fee: 0, date, description: `Fuliza access fee (${code})`, category: "Fees & Charges" };
+    return res;
+}
+
 function parseOne({ code, body }) {
     const tr = parseTransfer(body, code);
     if (tr) return tr.skip ? { skip: tr.skip } : { transfer: tr.transfer };
+    const fz = parseFuliza(body, code);
+    if (fz) return fz;
 
     const when = body.match(new RegExp(DATE));
     const date = when ? toISODate(when[1], when[2], when[3]) : null;
@@ -155,7 +191,11 @@ export function parseMpesa(text) {
         if (r.skip) skipped.push({ reason: r.skip, text: msg.body.slice(0, 80) });
         else if (r.transfer) {
             const key = "T" + (r.transfer.code || msg.body);
-            if (!seen.has(key)) { seen.add(key); transfers.push(r.transfer); skipped.push({ reason: "Savings transfer (not counted as spending)", text: msg.body.slice(0, 80) }); }
+            if (!seen.has(key)) {
+                seen.add(key); transfers.push(r.transfer);
+                skipped.push({ reason: r.transfer.account === "fuliza" ? "Fuliza balance (not counted as spending)" : "Savings transfer (not counted as spending)", text: msg.body.slice(0, 80) });
+                if (r.item && !seen.has(r.item.id)) { seen.add(r.item.id); items.push(r.item); }
+            }
         }
         else if (!seen.has(r.item.id)) { seen.add(r.item.id); items.push(r.item); }
     }

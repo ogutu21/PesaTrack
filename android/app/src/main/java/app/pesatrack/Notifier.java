@@ -15,7 +15,21 @@ final class Notifier {
     private static final String CHANNEL = "captured";
     private Notifier() {}
 
+    // Fuliza borrowed or repaid, and what is still owed
+    static void fuliza(Context c, MpesaParser.Transfer t, boolean pending) {
+        String due = "";
+        try {
+            if (t.due != null) due = " · due " + new java.text.SimpleDateFormat("d MMM", Locale.US).format(new java.text.SimpleDateFormat("yyyy-MM-dd", Locale.US).parse(t.due));
+        } catch (Exception ignored) {}
+        String owed = t.balance > 0 ? String.format(Locale.US, "You owe Ksh %,.2f", t.balance) + due : "Nothing owed";
+        boolean borrowed = t.dir.equals("out");
+        String text = (borrowed ? String.format(Locale.US, "Borrowed Ksh %,.2f", t.amount) + (t.fee > 0 ? String.format(Locale.US, " · fee Ksh %,.2f", t.fee) : "")
+                : String.format(Locale.US, "Repaid Ksh %,.2f", t.amount)) + " · " + owed + (pending ? " · syncing when online" : "");
+        show(c, ("fz" + t.code).hashCode(), borrowed ? "Fuliza borrowed" : "Fuliza repaid", text);
+    }
+
     static void savings(Context c, MpesaParser.Transfer t, boolean pending) {
+        if (t.account.equals("fuliza")) { fuliza(c, t, pending); return; }
         String name = t.account.equals("mshwari") ? "M-Shwari" : "KCB M-PESA";
         String moved = String.format(Locale.US, "Ksh %,.2f", t.amount) + (t.dir.equals("in") ? " saved" : " withdrawn");
         show(c, ("sv" + t.code).hashCode(), name + " balance updated", String.format(Locale.US, "Balance Ksh %,.2f · ", t.balance) + moved + (pending ? " · syncing when online" : ""));

@@ -20,8 +20,11 @@ final class MpesaParser {
 
     /** A move to or from your own M-Shwari / KCB M-PESA savings. Updates a balance; it is not income or spending. */
     static final class Transfer {
-        String code, account, dir, date, asOf;   // account: "mshwari" | "kcb"; dir: "in" (into savings) | "out"
-        double amount, balance;
+        String code, account, dir, date, asOf;   // account: "mshwari" | "kcb" | "fuliza"; dir: "in" (into savings, or Fuliza repaid) | "out" (or Fuliza borrowed)
+        double amount, balance;   // for Fuliza, balance = what you still owe
+        String due;               // Fuliza only: due date, yyyy-MM-dd, or null
+        Double limit;             // Fuliza only: limit still available, or null
+        double fee;               // Fuliza only: access fee
     }
 
     private static final int CI = Pattern.CASE_INSENSITIVE;
@@ -187,11 +190,46 @@ final class MpesaParser {
         return t;
     }
 
+    private static String pad2(int n) { return n < 10 ? "0" + n : String.valueOf(n); }
+
+    // Fuliza (M-Pesa overdraft). Same rules as parseFuliza() in public/mpesa.js; these messages carry no date, so today's date is used.
+    private static Transfer parseFuliza(String code, String body) {
+        if (!find("fuliza", body) || find("(sent to|paid to|received)", body)) return null;
+        java.util.Calendar now = java.util.Calendar.getInstance();
+        Transfer t = new Transfer();
+        t.code = code; t.account = "fuliza";
+        t.date = now.get(java.util.Calendar.YEAR) + "-" + pad2(now.get(java.util.Calendar.MONTH) + 1) + "-" + pad2(now.get(java.util.Calendar.DAY_OF_MONTH));
+        t.asOf = t.date + "T" + pad2(now.get(java.util.Calendar.HOUR_OF_DAY)) + ":" + pad2(now.get(java.util.Calendar.MINUTE));
+        Matcher lim = match("Available Fuliza M-?PESA limit is\\s+" + AMOUNT, body);
+        if (lim != null) t.limit = toNumber(lim.group(1));
+        Matcher dm = match("due on\\s+" + DATE, body);
+        if (dm != null) t.due = toISODate(dm.group(1), dm.group(2), dm.group(3));
+        Matcher rp = match(AMOUNT + "\\s+from your M-?PESA has been used to\\s+(?:(fully|partially)\\s+)?pay your outstanding Fuliza", body);
+        if (rp != null) {
+            t.dir = "in"; t.amount = toNumber(rp.group(1));
+            if (rp.group(2) != null && rp.group(2).equalsIgnoreCase("fully")) t.balance = 0;
+            else {
+                Matcher o = match("outstanding[^.]*?\\bis\\s+" + AMOUNT, body.substring(rp.end()));
+                if (o == null) return null;
+                t.balance = toNumber(o.group(1));
+            }
+            return t;
+        }
+        Matcher dr = match("Fuliza M-?PESA amount is\\s+" + AMOUNT, body);
+        Matcher out = match("Total Fuliza M-?PESA outstanding amount is\\s+" + AMOUNT, body);
+        if (dr == null || out == null) return null;
+        t.dir = "out"; t.amount = toNumber(dr.group(1)); t.balance = toNumber(out.group(1));
+        Matcher fm = match("Access Fee charged\\s+" + AMOUNT, body);
+        t.fee = fm != null ? toNumber(fm.group(1)) : 0;
+        return t;
+    }
+
     static List<Transfer> parseTransfers(String text) {
         List<Transfer> out = new ArrayList<>();
         Set<String> seen = new LinkedHashSet<>();
         for (String[] msg : splitMessages(text == null ? "" : text)) {
             Transfer t = parseTransfer(msg[0], msg[1]);
+            if (t == null) t = parseFuliza(msg[0], msg[1]);
             if (t != null && seen.add("T" + (msg[0] != null ? msg[0] : msg[1]))) out.add(t);
         }
         return out;
@@ -202,6 +240,14 @@ final class MpesaParser {
         Set<String> seen = new LinkedHashSet<>();
         for (String[] msg : splitMessages(text == null ? "" : text)) {
             Item it = parseOne(msg[0], msg[1]);
+            if (it == null) {   // a Fuliza borrowing message: its access fee is a real expense
+                Transfer f = parseFuliza(msg[0], msg[1]);
+                if (f != null && f.fee > 0 && f.dir.equals("out")) {
+                    it = new Item();
+                    it.id = "mpesa-" + msg[0] + "-fzfee"; it.code = msg[0]; it.kind = "fuliza-fee"; it.type = "expense"; it.amount = f.fee; it.fee = 0;
+                    it.date = f.date; it.description = "Fuliza access fee (" + msg[0] + ")"; it.category = "Fees & Charges";
+                }
+            }
             if (it != null && seen.add(it.id)) items.add(it);
         }
         return items;

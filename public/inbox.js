@@ -26,7 +26,7 @@ export function initInbox({ $, toast, escapeHTML: esc, confirmDialog }) {
                     const ref = doc(db, "users", uid, "savings", t.account);
                     const cur = await getDoc(ref);
                     if (cur.exists() && String(cur.data().asOf || "") > t.asOf) return;
-                    await setDoc(ref, { balance: t.balance, asOf: t.asOf, lastAmount: t.amount, lastDir: t.dir, lastDate: t.date, updatedAt: new Date().toISOString() });
+                    await setDoc(ref, { balance: t.balance, asOf: t.asOf, lastAmount: t.amount, lastDir: t.dir, lastDate: t.date, ...(t.due ? { due: t.due } : {}), ...(t.limit != null ? { limit: t.limit } : {}), updatedAt: new Date().toISOString() });
                 },
                 payees: async () => { const s = await getDoc(doc(db, "users", uid, "settings", "payees")); return s.exists() ? (s.data().map || {}) : {}; },
                 remove: id => deleteDoc(doc(db, "users", uid, "inbox", id))
