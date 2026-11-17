@@ -6,6 +6,8 @@ on:
 jobs:
   apk:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write   # lets the build publish the release
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -16,3 +18,11 @@ jobs:
       - run: $ANDROID_HOME/build-tools/$(ls $ANDROID_HOME/build-tools | sort -V | tail -1)/apksigner verify --print-certs android/app/build/outputs/apk/release/app-release.apk | grep -i "SHA-1"
       - uses: actions/upload-artifact@v4
         with: { name: PesaTrack-apk, path: android/app/build/outputs/apk/release/app-release.apk }
+      - name: Publish the APK as a release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION=$(grep -oP 'versionName = "\K[^"]+' android/app/build.gradle.kts)
+          cp android/app/build/outputs/apk/release/app-release.apk "PesaTrack-$VERSION.apk"
+          gh release delete "v$VERSION" --cleanup-tag --yes || true
+          gh release create "v$VERSION" "PesaTrack-$VERSION.apk" --target "$GITHUB_SHA" --title "PesaTrack $VERSION" --notes "Open this file on your phone to install or update PesaTrack. Your data stays in your account."
