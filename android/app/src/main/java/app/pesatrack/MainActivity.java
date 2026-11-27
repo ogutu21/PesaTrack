@@ -97,6 +97,7 @@ public class MainActivity extends Activity {
     @Override protected void onResume() {
         super.onResume();
         new Thread(() -> Sender.flush(getApplicationContext())).start();   // send anything that was waiting for a connection
+        tellPage();   // back from phone settings: refresh the capture checklist
     }
 
     // ---------- capture checklist helpers ----------
@@ -111,8 +112,6 @@ public class MainActivity extends Activity {
     }
 
     private void tellPage() { if (web != null) web.post(() -> web.evaluateJavascript("window.dispatchEvent(new Event('pesatrack-status'))", null)); }
-
-    @Override protected void onResume() { super.onResume(); tellPage(); }   // back from phone settings: refresh the checklist
 
     @Override public void onRequestPermissionsResult(int req, String[] perms, int[] res) { super.onRequestPermissionsResult(req, perms, res); tellPage(); }
 

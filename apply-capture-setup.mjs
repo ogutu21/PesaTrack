@@ -95,6 +95,19 @@ patch(jv + "SmsReceiver.java", "noteSms", [
     ["                android.util.Log.i(\"PesaTrack\", \"configured=\" + Sender.configured(app));",
      "                android.util.Log.i(\"PesaTrack\", \"configured=\" + Sender.configured(app));\n                if (!Sender.configured(app)) Sender.note(app, \"capture isn't set up on this phone\");"]
 ]);
+// repair: an earlier copy of this patch added a second onResume(), which stops the app from building
+{
+    const f = jv + "MainActivity.java";
+    let text = readFileSync(f, "utf8"); const crlf = text.includes("\r\n"); if (crlf) text = text.replace(/\r\n/g, "\n");
+    const dup = "    @Override protected void onResume() { super.onResume(); tellPage(); }   // back from phone settings: refresh the checklist\n\n";
+    if (text.includes(dup)) {
+        text = text.replace(dup, "");
+        const old = "        new Thread(() -> Sender.flush(getApplicationContext())).start();   // send anything that was waiting for a connection\n    }";
+        if (text.split(old).length === 2) text = text.replace(old, old.replace("\n    }", "\n        tellPage();   // back from phone settings: refresh the capture checklist\n    }"));
+        writeFileSync(f, crlf ? text.replace(/\n/g, "\r\n") : text);
+        console.log("✓ MainActivity.java: removed the duplicate onResume()");
+    }
+}
 patch(jv + "MainActivity.java", "openSettingsScreen", [
     ["        @JavascriptInterface public void clearConfig() { if (trusted) Sender.clearConfig(getApplicationContext()); }",
 `        @JavascriptInterface public void clearConfig() { if (trusted) Sender.clearConfig(getApplicationContext()); }
@@ -122,6 +135,8 @@ patch(jv + "MainActivity.java", "openSettingsScreen", [
         }
         @JavascriptInterface public void openAppSettings() { if (trusted) runOnUiThread(() -> openSettingsScreen(false)); }
         @JavascriptInterface public void openBatterySettings() { if (trusted) runOnUiThread(() -> openSettingsScreen(true)); }`],
+    ["        new Thread(() -> Sender.flush(getApplicationContext())).start();   // send anything that was waiting for a connection\n    }",
+     "        new Thread(() -> Sender.flush(getApplicationContext())).start();   // send anything that was waiting for a connection\n        tellPage();   // back from phone settings: refresh the capture checklist\n    }"],
     ["    // ---------- fingerprint / face unlock for the app lock ----------",
 `    // ---------- capture checklist helpers ----------
     private void openSettingsScreen(boolean battery) {
@@ -135,8 +150,6 @@ patch(jv + "MainActivity.java", "openSettingsScreen", [
     }
 
     private void tellPage() { if (web != null) web.post(() -> web.evaluateJavascript("window.dispatchEvent(new Event('pesatrack-status'))", null)); }
-
-    @Override protected void onResume() { super.onResume(); tellPage(); }   // back from phone settings: refresh the checklist
 
     @Override public void onRequestPermissionsResult(int req, String[] perms, int[] res) { super.onRequestPermissionsResult(req, perms, res); tellPage(); }
 
