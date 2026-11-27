@@ -1,0 +1,23 @@
+:root { color-scheme: light dark; --bg: #f5f3fa; --surface: #ffffff; --text: #1a1722; --muted: #6b6578; --line: #e4e0ee; --primary: #6d5df0; --primary-text: #ffffff; }
+@media (prefers-color-scheme: dark) { :root { --bg: #12100f; --surface: #1c1917; --text: #f6f3f0; --muted: #a8a09a; --line: #2f2927; --primary: #8b7cff; --primary-text: #12100f; } }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.55 "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif; -webkit-font-smoothing: antialiased; }
+.page { max-width: 34rem; margin: 0 auto; padding: 28px 20px 56px; }
+.brand { display: flex; align-items: center; gap: 12px; margin-bottom: 36px; font: 700 20px "Bricolage Grotesque", system-ui, sans-serif; letter-spacing: -0.01em; }
+.brand img { border-radius: 11px; }
+h1 { margin: 0 0 12px; font: 700 clamp(30px, 8vw, 40px)/1.08 "Bricolage Grotesque", system-ui, sans-serif; letter-spacing: -0.02em; text-wrap: balance; }
+h2 { margin: 44px 0 14px; font: 600 20px "Bricolage Grotesque", system-ui, sans-serif; }
+.lead { margin: 0 0 28px; color: var(--muted); max-width: 30rem; }
+.download { display: block; padding: 17px 20px; border-radius: 12px; background: var(--primary); color: var(--primary-text); font-weight: 600; font-size: 17px; text-align: center; text-decoration: none; }
+.download:hover { filter: brightness(1.06); }
+.download:focus-visible, a:focus-visible, summary:focus-visible { outline: 3px solid var(--primary); outline-offset: 3px; }
+.meta { margin: 12px 0 0; font-size: 14px; color: var(--muted); }
+a { color: var(--primary); }
+.steps { margin: 0; padding: 0; list-style: none; counter-reset: step; }
+.steps li { position: relative; padding: 0 0 18px 44px; counter-increment: step; }
+.steps li::before { content: counter(step); position: absolute; left: 0; top: -1px; width: 30px; height: 30px; border-radius: 50%; border: 1.5px solid var(--primary); color: var(--primary); font-weight: 600; font-size: 14px; display: flex; align-items: center; justify-content: center; }
+details { border-top: 1px solid var(--line); padding: 14px 0; }
+details:last-of-type { border-bottom: 1px solid var(--line); }
+summary { cursor: pointer; font-weight: 600; }
+details p { margin: 10px 0 0; color: var(--muted); }
+.foot { margin-top: 32px; font-size: 13px; color: var(--muted); }
