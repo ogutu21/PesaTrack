@@ -23,7 +23,8 @@ import { initHome } from "./home.js";
 import { initInbox } from "./inbox.js";
 import { initSavings } from "./savings.js";
 import { initPayees } from "./payees.js";
-import "./app-update.js";   // tells the Android app when a newer version exists
+import "./app-update.js";
+import { initExtras } from "./extras.js";   // tells the Android app when a newer version exists
 
 let transactions = [];
 let currentUser = null;
@@ -889,6 +890,13 @@ const home = initHome({
     }
 });
 
+// ---------- review list, fees, spending in words, hide amounts ----------
+const extras = initExtras({
+    $, escapeHTML, formatCurrency, formatDate, monthLabel, shiftMonth, localToday, categoriesFor, toast,
+    getAll: () => transactions, getMonth: () => selectedMonth,
+    saveTx: tx => saveTransaction(currentUser.uid, tx).catch(reportWriteError)
+});
+
 // ---------- quick-add bottom sheet (phones) ----------
 const quickAdd = $("quickAddCard");
 {
@@ -957,6 +965,7 @@ function renderAll() {
     renderCharts();
     features.render();
     home.render();
+    extras.render();
 }
 
 // =====================================================
