@@ -19,6 +19,7 @@ public class SmsReceiver extends BroadcastReceiver {
         boolean ours = sender.contains("MPESA") || sender.contains("SHWARI") || sender.contains("KCB");
         android.util.Log.i("PesaTrack", "SMS received, sender=" + sender + ", used=" + ours);
         if (!ours) return;
+        Sender.noteSms(context.getApplicationContext());
         StringBuilder sb = new StringBuilder();
         for (SmsMessage m : parts) sb.append(m.getMessageBody());
         final String text = sb.toString();
@@ -27,6 +28,7 @@ public class SmsReceiver extends BroadcastReceiver {
         new Thread(() -> {
             try {
                 android.util.Log.i("PesaTrack", "configured=" + Sender.configured(app));
+                if (!Sender.configured(app)) Sender.note(app, "capture isn't set up on this phone");
                 Sender.enqueue(app, text); Sender.flush(app);
             } catch (Throwable t) {
                 android.util.Log.w("PesaTrack", "receiver error", t);

@@ -99,6 +99,23 @@ public class MainActivity extends Activity {
         new Thread(() -> Sender.flush(getApplicationContext())).start();   // send anything that was waiting for a connection
     }
 
+    // ---------- capture checklist helpers ----------
+    private void openSettingsScreen(boolean battery) {
+        try {
+            if (battery) {
+                try { startActivity(new Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:" + getPackageName()))); return; }
+                catch (Exception e) { startActivity(new Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)); return; }
+            }
+            startActivity(new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + getPackageName())));
+        } catch (Exception ignored) {}
+    }
+
+    private void tellPage() { if (web != null) web.post(() -> web.evaluateJavascript("window.dispatchEvent(new Event('pesatrack-status'))", null)); }
+
+    @Override protected void onResume() { super.onResume(); tellPage(); }   // back from phone settings: refresh the checklist
+
+    @Override public void onRequestPermissionsResult(int req, String[] perms, int[] res) { super.onRequestPermissionsResult(req, perms, res); tellPage(); }
+
     // ---------- fingerprint / face unlock for the app lock ----------
     private void reply(final String id, final boolean ok) {
         final String js = "(function(){var m=window.__pesaBio,f=m&&m[\"" + id + "\"];if(f){delete m[\"" + id + "\"];f(" + ok + ");}})()";
@@ -178,6 +195,30 @@ public class MainActivity extends Activity {
         }
         @JavascriptInterface public void saveAuth(String refreshToken) { if (trusted) Sender.saveAuth(getApplicationContext(), refreshToken); }
         @JavascriptInterface public void clearConfig() { if (trusted) Sender.clearConfig(getApplicationContext()); }
+        @JavascriptInterface public String status() {   // what the "Automatic M-Pesa capture" checklist shows
+            if (!trusted) return "{}";
+            try {
+                android.content.Context c = getApplicationContext();
+                android.os.PowerManager pm = (android.os.PowerManager) getSystemService(android.content.Context.POWER_SERVICE);
+                return new org.json.JSONObject()
+                        .put("sms", checkSelfPermission(Manifest.permission.RECEIVE_SMS) == PackageManager.PERMISSION_GRANTED)
+                        .put("notify", Build.VERSION.SDK_INT < 33 || checkSelfPermission("android.permission.POST_NOTIFICATIONS") == PackageManager.PERMISSION_GRANTED)
+                        .put("signedIn", Sender.signedIn(c)).put("configured", Sender.configured(c))
+                        .put("battery", pm != null && pm.isIgnoringBatteryOptimizations(getPackageName()))
+                        .put("lastSms", Sender.lastSms(c)).put("lastResult", Sender.lastResult(c)).toString();
+            } catch (Exception e) { return "{}"; }
+        }
+        @JavascriptInterface public void requestSms() {
+            if (!trusted) return;
+            runOnUiThread(() -> {
+                java.util.ArrayList<String> need = new java.util.ArrayList<>();
+                if (checkSelfPermission(Manifest.permission.RECEIVE_SMS) != PackageManager.PERMISSION_GRANTED) need.add(Manifest.permission.RECEIVE_SMS);
+                if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission("android.permission.POST_NOTIFICATIONS") != PackageManager.PERMISSION_GRANTED) need.add("android.permission.POST_NOTIFICATIONS");
+                if (!need.isEmpty()) requestPermissions(need.toArray(new String[0]), 1);
+            });
+        }
+        @JavascriptInterface public void openAppSettings() { if (trusted) runOnUiThread(() -> openSettingsScreen(false)); }
+        @JavascriptInterface public void openBatterySettings() { if (trusted) runOnUiThread(() -> openSettingsScreen(true)); }
     }
 
     @Override protected void onSaveInstanceState(Bundle out) { super.onSaveInstanceState(out); web.saveState(out); }

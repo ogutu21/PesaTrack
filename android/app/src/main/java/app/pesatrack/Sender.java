@@ -55,6 +55,12 @@ final class Sender {
 
     private static boolean hasAuth(Context c) { return prefs(c).getString("refresh", null) != null; }
 
+    // what the "Automatic M-Pesa capture" screen shows: when the last message arrived and what happened to it
+    static void noteSms(Context c) { prefs(c).edit().putLong("last_sms", System.currentTimeMillis()).putString("last_result", "received").apply(); }
+    static void note(Context c, String result) { prefs(c).edit().putString("last_result", result).apply(); }
+    static long lastSms(Context c) { return prefs(c).getLong("last_sms", 0); }
+    static String lastResult(Context c) { return prefs(c).getString("last_result", ""); }
+
     // ---------- queue ----------
     static synchronized void enqueue(Context c, String text) {
         if (!configured(c)) return;   // automatic capture is off: drop it, nothing is stored
@@ -102,7 +108,7 @@ final class Sender {
         if (hasAuth(c)) {
             List<MpesaParser.Item> items = MpesaParser.parse(text);
             List<MpesaParser.Transfer> transfers = MpesaParser.parseTransfers(text);
-            if (items.isEmpty() && transfers.isEmpty()) return true;   // not a message we understand (Fuliza notice, reversal, other text)
+            if (items.isEmpty() && transfers.isEmpty()) { note(c, "nothing to add from that message"); return true; }   // not a message we understand (Fuliza notice, reversal, other text)
             boolean allDone = true;
             for (MpesaParser.Transfer tr : transfers) {
                 int sc = saveSavings(c, tr);
@@ -122,12 +128,14 @@ final class Sender {
                     if (fc != 200 && fc != 409 && fc != 400) allDone = false;
                 }
             }
+            note(c, allDone ? "saved to your account" : "waiting for internet");
             if (allDone) return true;
             if (hasAuth(c)) return false;       // network or temporary problem: retry later
             // the saved sign-in stopped working: fall through to the inbox
         }
         int code = postInbox(c, text);
         android.util.Log.i("PesaTrack", "inbox result=" + code);
+        note(c, code == 200 ? "sent to your inbox, it appears when you open the app" : code == 400 ? "couldn't be read" : "couldn't send, will retry");
         return code == 200 || code == 400;
     }
 
