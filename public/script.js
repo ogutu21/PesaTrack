@@ -23,6 +23,7 @@ import { initHome } from "./home.js";
 import { initInbox } from "./inbox.js";
 import { initSavings } from "./savings.js";
 import { initPayees } from "./payees.js";
+import "./app-update.js";   // tells the Android app when a newer version exists
 
 let transactions = [];
 let currentUser = null;

@@ -194,6 +194,20 @@ public class MainActivity extends Activity {
         }
         @JavascriptInterface public void saveAuth(String refreshToken) { if (trusted) Sender.saveAuth(getApplicationContext(), refreshToken); }
         @JavascriptInterface public void clearConfig() { if (trusted) Sender.clearConfig(getApplicationContext()); }
+        @JavascriptInterface public int versionCode() {   // lets the website tell whether a newer app exists
+            if (!trusted) return 0;
+            try {
+                android.content.pm.PackageInfo pi = getPackageManager().getPackageInfo(getPackageName(), 0);
+                return (int) (Build.VERSION.SDK_INT >= 28 ? pi.getLongVersionCode() : pi.versionCode);
+            } catch (Exception e) { return 0; }
+        }
+        @JavascriptInterface public void openUrl(String url) {   // opens the app download in the browser; only Google Drive and our own site
+            if (!trusted || url == null || url.length() > 300) return;
+            final Uri u = Uri.parse(url);
+            String host = u.getHost() == null ? "" : u.getHost().toLowerCase(java.util.Locale.ROOT);
+            if (!"https".equals(u.getScheme()) || !(host.equals("drive.google.com") || host.equals("drive.usercontent.google.com") || host.equals("docs.google.com") || host.equals("pesatrack-92632.web.app"))) return;
+            runOnUiThread(() -> { try { startActivity(new Intent(Intent.ACTION_VIEW, u)); } catch (Exception ignored) {} });
+        }
         @JavascriptInterface public String status() {   // what the "Automatic M-Pesa capture" checklist shows
             if (!trusted) return "{}";
             try {
