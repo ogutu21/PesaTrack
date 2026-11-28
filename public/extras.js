@@ -1,16 +1,14 @@
-// Home screen extras: "needs a category" review, M-Pesa fee breakdown, spending changes in words, and a hide-amounts button.
-import { reviewList, topCategories, feeBreakdown, sentences } from "./extras-core.js";
+// Home screen extras: money out by person, M-Pesa fee breakdown, spending changes in words, a hide-amounts button,
+// and a one-time tidy-up that moves older M-Pesa "Other" entries into Send Money / Buy Goods / Pay Bill / Withdrawals / Money Received.
+import { otherList, regroupCategory, peopleOut, feeBreakdown, sentences } from "./extras-core.js";
 
 const EYE = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
 const EYE_OFF = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l18 18M10.6 5.1A9.8 9.8 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4.2M6.6 6.6A16.6 16.6 0 0 0 2 12s3.6 7 10 7a9.7 9.7 0 0 0 4.2-.9"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>';
 
 export function initExtras(c) {
     const esc = c.escapeHTML, fmt = c.formatCurrency, $ = c.$;
-    const SKIP_KEY = "pt_review_skip", HIDE_KEY = "pt_hide_amounts";
-    let reviewCard = null, stack = null, busy = false;
-
-    const skipped = () => { try { return new Set(JSON.parse(localStorage.getItem(SKIP_KEY) || "[]")); } catch { return new Set(); } };
-    const skip = id => { try { localStorage.setItem(SKIP_KEY, JSON.stringify([...skipped(), id].slice(-500))); } catch {} };
+    const TIDY_KEY = "pt_regroup_done", HIDE_KEY = "pt_hide_amounts";
+    let peopleCard = null, stack = null, query = "", showAll = false, tidying = false;
 
     // ---------- hide amounts ----------
     function setupPrivacy() {
@@ -25,53 +23,60 @@ export function initExtras(c) {
         theme.before(btn);
     }
 
-    // ---------- needs a category ----------
-    function renderReview() {
-        const anchor = $("attention"); if (!anchor) return;
-        if (!reviewCard || !reviewCard.isConnected) {
-            reviewCard = document.createElement("section");
-            reviewCard.className = "xcard review-card"; reviewCard.id = "reviewCard"; reviewCard.hidden = true;
-            reviewCard.addEventListener("click", onReviewClick);
-            reviewCard.addEventListener("change", onReviewMore);
-            anchor.after(reviewCard);
+    // ---------- older "Other" entries -> M-Pesa groups (each entry is tried once) ----------
+    function tidy() {
+        if (tidying) return;
+        let done; try { done = new Set(JSON.parse(localStorage.getItem(TIDY_KEY) || "[]")); } catch { done = new Set(); }
+        const todo = otherList(c.getAll()).filter(t => !done.has(t.id)).slice(0, 300);
+        if (!todo.length) return;
+        tidying = true;
+        for (const t of todo) {
+            done.add(t.id);
+            const category = regroupCategory(t);
+            if (category) c.saveTx({ ...t, category });
         }
-        const all = c.getAll(), list = reviewList(all, skipped());
-        reviewCard.hidden = !list.length;
-        if (!list.length) return;
-        const t = list[0];
-        const names = c.categoriesFor(t.type).map(x => x.name).filter(n => n !== "Other");
-        const quick = topCategories(all, t.type).filter(n => names.includes(n));
-        for (const n of names) { if (quick.length >= 5) break; if (!quick.includes(n)) quick.push(n); }
-        const rest = names.filter(n => !quick.includes(n));
-        reviewCard.dataset.id = t.id;
-        reviewCard.innerHTML = `
-            <div class="xhead"><h3>Needs a category</h3><small>${list.length} left</small></div>
-            <p class="review-item"><strong>${esc(t.description)}</strong><span class="review-amt">${esc(fmt(t.amount))}${t.date ? " · " + esc(c.formatDate(t.date)) : ""}</span></p>
-            <div class="review-chips" role="group" aria-label="Choose a category">
-                ${quick.map(n => `<button type="button" class="chip" data-cat="${esc(n)}">${esc(n)}</button>`).join("")}
-                ${rest.length ? `<select class="chip-more" aria-label="More categories"><option value="">More…</option>${rest.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join("")}</select>` : ""}
-            </div>
-            <div class="xactions"><button type="button" class="secondary-button" data-skip>Skip for now</button></div>`;
+        try { localStorage.setItem(TIDY_KEY, JSON.stringify([...done].slice(-3000))); } catch {}
+        setTimeout(() => { tidying = false; }, 3000);
     }
 
-    function file(id, category) {
-        if (busy) return; busy = true; setTimeout(() => { busy = false; }, 500);
-        const tx = c.getAll().find(t => t.id === id); if (!tx) return;
-        c.saveTx({ ...tx, category });
-        c.toast(`Filed under ${category}`, "success");
+    // ---------- money out by person ----------
+    function renderPeople() {
+        const anchor = $("quickActions"); if (!anchor) return;
+        if (!peopleCard || !peopleCard.isConnected) {
+            peopleCard = document.createElement("section");
+            peopleCard.className = "xcard people-card"; peopleCard.id = "peopleCard"; peopleCard.hidden = true;
+            peopleCard.innerHTML = `<div class="xhead"><h3>Money out by person</h3><small id="peopleCount"></small></div>
+                <input id="peopleSearch" class="people-search" type="search" placeholder="Search by name" aria-label="Search by name" autocomplete="off">
+                <div id="peopleList" class="people-list"></div>
+                <button type="button" id="peopleMore" class="secondary-button people-more" hidden></button>`;
+            peopleCard.addEventListener("input", e => { if (e.target.id === "peopleSearch") { query = e.target.value.trim().toLowerCase(); renderPeopleList(); } });
+            peopleCard.addEventListener("click", e => { if (e.target.id === "peopleMore") { showAll = !showAll; renderPeopleList(); } });
+            anchor.after(peopleCard);
+        }
+        renderPeopleList();
     }
-    function onReviewClick(e) {
-        const id = reviewCard.dataset.id;
-        const chip = e.target.closest("[data-cat]");
-        if (chip) return file(id, chip.dataset.cat);
-        if (e.target.closest("[data-skip]")) { skip(id); renderReview(); }
+
+    function renderPeopleList() {
+        if (!peopleCard) return;
+        const month = c.getMonth() === "all" ? null : c.getMonth();
+        const all = peopleOut(c.getAll(), month);
+        peopleCard.hidden = !all.length;
+        if (!all.length) return;
+        const rows = query ? all.filter(p => p.name.toLowerCase().includes(query)) : all;
+        const shown = query || showAll ? rows : rows.slice(0, 6);
+        peopleCard.querySelector("#peopleCount").textContent = `${all.length} ${all.length === 1 ? "name" : "names"} · ${month ? c.monthLabel(month) : "All time"}`;
+        peopleCard.querySelector("#peopleList").innerHTML = shown.length
+            ? shown.map(p => `<div class="people-row"><span class="people-name">${esc(p.name)}<small>${p.count}×</small></span><span class="people-amt">${esc(fmt(p.total))}</span></div>`).join("")
+            : `<p class="xnote">No one with that name.</p>`;
+        const more = peopleCard.querySelector("#peopleMore");
+        more.hidden = !!query || rows.length <= 6;
+        more.textContent = showAll ? "Show fewer" : `Show all ${rows.length}`;
     }
-    function onReviewMore(e) { if (e.target.matches(".chip-more") && e.target.value) file(reviewCard.dataset.id, e.target.value); }
 
     // ---------- fees, and spending changes in words ----------
     function ensureStack() {
         const qa = $("quickActions"); if (!qa) return null;
-        if (!stack || !stack.isConnected) { stack = document.createElement("div"); stack.id = "extrasStack"; qa.after(stack); }
+        if (!stack || !stack.isConnected) { stack = document.createElement("div"); stack.id = "extrasStack"; (peopleCard && peopleCard.isConnected ? peopleCard : qa).after(stack); }
         return stack;
     }
 
@@ -96,7 +101,8 @@ export function initExtras(c) {
 
     function render() {
         setupPrivacy();
-        renderReview();
+        tidy();
+        renderPeople();
         const box = ensureStack();
         if (box) box.innerHTML = feesHTML() + wordsHTML();
     }

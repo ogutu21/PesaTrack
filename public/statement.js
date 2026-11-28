@@ -3,7 +3,7 @@
 //
 // Input is what a PDF text layer gives us: for every page, a list of { str, x, y, w }
 // (text, left edge, baseline height measured from the bottom of the page, and width).
-import { guessCategory } from "./mpesa.js";
+import { guessCategory, fallbackCategory } from "./mpesa.js";
 
 const RECEIPT = /^[A-Z0-9]{10}$/;
 const TIME = /^(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2})$/;
@@ -92,6 +92,12 @@ export function partyFrom(details) {
 }
 
 function classify(r) {
+    const o = classifyRow(r);
+    if (o.category === "Other" && !o.internal) o.category = fallbackCategory(o.kind, o.type, o.party);
+    return o;
+}
+
+function classifyRow(r) {
     const d = r.details;
     const out = { type: r.direction === "in" ? "income" : "expense" };
     let party = partyFrom(d);

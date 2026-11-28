@@ -8,17 +8,34 @@ const nameOf = d => String(d || "").replace(/^(sent to|paid to|received from)\s+
 const median = a => { const s = [...a].sort((x, y) => x - y), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
 const newest = (a, b) => String(b.date || "").localeCompare(String(a.date || "")) || String(b.createdAt || "").localeCompare(String(a.createdAt || ""));
 
-// ---------- needs a category ----------
-// M-Pesa transactions still filed under "Other" (and not skipped on this device), newest first.
-export function reviewList(transactions, skipped = new Set()) {
-    return (transactions || []).filter(t => isMpesa(t) && !feeKind(t) && t.category === "Other" && !skipped.has(t.id)).sort(newest);
+// ---------- tidy up older "Other" entries ----------
+// M-Pesa transactions still filed under "Other" (not fees), newest first.
+export function otherList(transactions) {
+    return (transactions || []).filter(t => isMpesa(t) && !feeKind(t) && t.category === "Other").sort(newest);
 }
 
-// The categories you use most for a type (not "Other"), most used first.
-export function topCategories(transactions, type, n = 5) {
-    const count = new Map();
-    for (const t of transactions || []) if (t.type === type && t.category && t.category !== "Other") count.set(t.category, (count.get(t.category) || 0) + 1);
-    return [...count.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, n).map(e => e[0]);
+// The M-Pesa group an older "Other" transaction belongs to, from its description. null = leave it as it is.
+export function regroupCategory(t) {
+    const d = String(t && t.description || ""), type = t && t.type;
+    if (/^m-pesa withdrawal/i.test(d)) return "Withdrawals";
+    if (type === "income") return /^(received from|m-pesa cash deposit)/i.test(d) ? "Money Received" : null;
+    if (/^sent to .*\bfor account\b/i.test(d)) return "Pay Bill";
+    if (/^paid to /i.test(d)) return "Buy Goods";
+    if (/^sent to /i.test(d)) return "Send Money";
+    return null;
+}
+
+// ---------- money out, by person or till ----------
+// One row per name you sent to or paid, biggest first. month = "YYYY-MM" or null for everything.
+export function peopleOut(transactions, month) {
+    const by = new Map();
+    for (const t of transactions || []) {
+        if (!t || t.type !== "expense" || (month && monthOf(t.date) !== month)) continue;
+        const key = payeeKey(t.description, "expense"); if (!key) continue;
+        const row = by.get(key) || { key, name: nameOf(t.description), total: 0, count: 0 };
+        row.total += Number(t.amount) || 0; row.count++; by.set(key, row);
+    }
+    return [...by.values()].sort((a, b) => b.total - a.total || a.name.localeCompare(b.name));
 }
 
 // ---------- fees ----------

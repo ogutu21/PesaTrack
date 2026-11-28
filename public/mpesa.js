@@ -40,6 +40,16 @@ export function guessCategory(name, type) {
     return "Other";
 }
 
+// When no name rule matches, file the payment under what kind of M-Pesa payment it was (like the M-Pesa statement does).
+export function fallbackCategory(kind, type, party) {
+    if (kind === "withdraw") return "Withdrawals";
+    if (type === "income") return kind === "reversal" ? "Refunds" : "Money Received";
+    if (kind === "paybill" || /\bfor account\b/i.test(party || "")) return "Pay Bill";
+    if (kind === "paid") return "Buy Goods";
+    if (kind === "sent") return "Send Money";
+    return "Other";
+}
+
 function toNumber(s) { return Number(String(s).replace(/,/g, "")); }
 
 function toISODate(d, m, y) {
@@ -176,7 +186,8 @@ function parseOne({ code, body }) {
         deposit: "M-Pesa cash deposit"
     }[kind].slice(0, 100);
 
-    const category = kind === "airtime" ? "Airtime & Data" : kind === "withdraw" ? "Other" : guessCategory(party, type);
+    let category = kind === "airtime" ? "Airtime & Data" : kind === "withdraw" ? "Other" : guessCategory(party, type);
+    if (category === "Other") category = fallbackCategory(kind, type, party);
     const id = code ? `mpesa-${code}` : `mpesa-h${hash(body)}`;
 
     return { item: { id, code, kind, type, amount, fee, date, description, category } };

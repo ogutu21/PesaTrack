@@ -3,6 +3,8 @@
 
 const PREFIX = /^(sent to|paid to|received from)\s+(.+)$/i;
 export const MAX_PAYEES = 200;
+// Catch-all groups are not remembered per payee, so the built-in guesses still apply.
+const FALLBACK = new Set(["Other", "Send Money", "Buy Goods", "Pay Bill", "Withdrawals", "Money Received"]);
 
 // "Paid to NAIVAS KILIMANI" (expense) -> "out naivas kilimani". Money in and out of the same name are remembered separately.
 // Returns "" when the description isn't a payment to or from a named party (airtime, withdrawals, fees, hand-typed entries).
@@ -18,7 +20,7 @@ export function payeeKey(description, type) {
 export function learnPayees(transactions) {
     const best = new Map();   // key -> { category, stamp }
     for (const t of transactions || []) {
-        if (!t || !t.category || t.category === "Other") continue;
+        if (!t || !t.category || FALLBACK.has(t.category)) continue;
         const key = payeeKey(t.description, t.type);
         if (!key) continue;
         const stamp = String(t.date || "") + "|" + String(t.createdAt || "");

@@ -16,11 +16,12 @@ export const BUILTIN = [
     E("Savings & Investments", "🏦", "#16a34a"), E("Home & Household", "🧰", "#a16207"),
     E("Business Expenses", "🏢", "#475569"), E("Fees & Charges", "🧮", "#78716c"), E("Taxes", "🏛️", "#334155"),
     E("Pets", "🐾", "#c2410c"),
+    E("Send Money", "💸", "#0ea5e9"), E("Buy Goods", "🏪", "#f59e0b"), E("Pay Bill", "🧾", "#22c55e"), E("Withdrawals", "🏧", "#a855f7"),
     // ---- income ----
     I("Salary", "💼", "#16a34a"), I("Business", "🏢", "#0f766e"), I("Freelance", "💻", "#2563eb"),
     I("Side Hustle", "🛠️", "#7c3aed"), I("Bonus", "🎉", "#d97706"), I("Allowance", "🎒", "#0891b2"),
     I("Rental Income", "🏘️", "#4f46e5"), I("Investment Returns", "📈", "#15803d"), I("Gifts Received", "🎀", "#db2777"),
-    I("Refunds", "🔄", "#0284c7"), I("Loan Received", "🤲", "#9333ea"),
+    I("Refunds", "🔄", "#0284c7"), I("Loan Received", "🤲", "#9333ea"), I("Money Received", "📥", "#0891b2"),
     // ---- both ----
     { name: "Other", icon: "💰", color: "#6b7280", type: "both" }
 ];

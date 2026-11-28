@@ -1,4 +1,4 @@
-/* xcard: home screen extras (review list, fees, spending in words) and hide-amounts mode */
+/* xcard: home screen extras (people list, fees, spending in words) and hide-amounts mode */
 .xcard { margin: 0 0 18px; padding: 16px 18px; background: var(--surface); border: 1px solid var(--line, var(--border)); border-radius: 18px; }
 .xcard[hidden] { display: none; }
 .xhead { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 0 0 6px; }
@@ -7,18 +7,17 @@
 .xhead small { font-size: 13px; color: var(--muted); }
 .xnote { margin: 4px 0 0; font-size: 14px; color: var(--muted); }
 .words-line { color: var(--text); }
-.review-card { border-color: var(--primary); }
-.review-item { display: flex; flex-direction: column; margin: 6px 0 12px; }
-.review-item strong { font-size: 17px; color: var(--text); overflow-wrap: anywhere; }
-.review-item span { font-size: 14px; color: var(--muted); }
-.review-chips { display: flex; flex-wrap: wrap; gap: 8px; }
-.chip, .chip-more { padding: 9px 14px; min-height: 40px; border-radius: 999px; border: 1px solid var(--line, var(--border)); background: transparent; color: var(--text); font: inherit; font-size: 14px; cursor: pointer; }
-.chip:hover, .chip-more:hover { border-color: var(--primary); }
-.chip:focus-visible, .chip-more:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
-.xactions { margin-top: 12px; display: flex; gap: 8px; }
+.people-search { width: 100%; box-sizing: border-box; margin: 8px 0 4px; padding: 11px 14px; min-height: 44px; border: 1px solid var(--line, var(--border)); border-radius: 12px; background: transparent; color: var(--text); font: inherit; font-size: 15px; }
+.people-search:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.people-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 11px 0; border-top: 1px solid var(--line, var(--border)); font-size: 15px; }
+.people-name { overflow-wrap: anywhere; }
+.people-name small { color: var(--muted); margin-left: 6px; }
+.people-amt { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.people-more { margin-top: 8px; width: 100%; }
+.people-more[hidden] { display: none; }
 .fee-rows { margin-top: 8px; }
 .fee-row { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; border-top: 1px solid var(--line, var(--border)); font-size: 15px; }
 .fee-row small { color: var(--muted); margin-left: 4px; }
 .fee-amt { font-variant-numeric: tabular-nums; }
-body.hide-amounts :is(.summary-card h3, .transaction-amount, .category-value, .legend-value, .donut-total, .budget-top, .budget-note, .stat-tile strong, .stat-tile span, .att-text span, .savings-head strong, .savings-row strong, .savings-row small, .savings-debt strong, .savings-debt small, .xhead strong, .xnote, .fee-amt, .review-amt) { filter: blur(7px); transition: filter .15s; user-select: none; }
+body.hide-amounts :is(.summary-card h3, .transaction-amount, .category-value, .legend-value, .donut-total, .budget-top, .budget-note, .stat-tile strong, .stat-tile span, .att-text span, .savings-head strong, .savings-row strong, .savings-row small, .savings-debt strong, .savings-debt small, .xhead strong, .xnote, .fee-amt, .people-amt, .people-name small) { filter: blur(7px); transition: filter .15s; user-select: none; }
 @media (prefers-reduced-motion: reduce) { body.hide-amounts * { transition: none !important; } }

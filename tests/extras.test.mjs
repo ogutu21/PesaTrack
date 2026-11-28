@@ -1,7 +1,7 @@
 // Run from the project root: node tests/extras.test.mjs
 import assert from "node:assert/strict";
 import { pathToFileURL } from "node:url"; import { resolve } from "node:path";
-const { reviewList, topCategories, feeBreakdown, spendByCategory, sentences } = await import(pathToFileURL(resolve("public/extras-core.js")).href);
+const { otherList, regroupCategory, peopleOut, feeBreakdown, spendByCategory, sentences } = await import(pathToFileURL(resolve("public/extras-core.js")).href);
 const tx = (id, description, type, category, date, amount, createdAt = "") => ({ id, description, type, category, date, amount, createdAt });
 const fmt = n => "Ksh " + Math.round(n).toLocaleString("en-US");
 
@@ -14,9 +14,26 @@ const list = [
     tx("manual-1", "Lunch", "expense", "Other", "2026-11-06", 200),                         // typed by hand: not asked about
     tx("mpesa-A4", "Received from JANE", "income", "Other", "2026-11-08", 500)
 ];
-assert.deepEqual(reviewList(list).map(t => t.id), ["mpesa-A4", "mpesa-A2", "mpesa-A1"]);
-assert.deepEqual(reviewList(list, new Set(["mpesa-A2"])).map(t => t.id), ["mpesa-A4", "mpesa-A1"]);
-assert.deepEqual(topCategories([tx("1", "", "expense", "Food", "", 1), tx("2", "", "expense", "Food", "", 1), tx("3", "", "expense", "Groceries", "", 1), tx("4", "", "expense", "Other", "", 1), tx("5", "", "income", "Salary", "", 1)], "expense"), ["Food", "Groceries"]);
+assert.deepEqual(otherList(list).map(t => t.id), ["mpesa-A4", "mpesa-A2", "mpesa-A1"]);
+assert.equal(regroupCategory(list[0]), "Buy Goods");
+assert.equal(regroupCategory(list[1]), "Withdrawals");
+assert.equal(regroupCategory(list[5]), "Money Received");
+assert.equal(regroupCategory(tx("mpesa-B", "Sent to KPLC PREPAID for account 123", "expense", "Other", "", 1)), "Pay Bill");
+assert.equal(regroupCategory(tx("mpesa-B", "Sent to JOHN DOE", "expense", "Other", "", 1)), "Send Money");
+assert.equal(regroupCategory(tx("mpesa-B", "Airtime purchase", "expense", "Other", "", 1)), null);
+assert.equal(regroupCategory(tx("mpesa-B", "Fuliza access fee (X)", "expense", "Other", "", 1)), null);
+
+// money out by person (the same name always lands in the same row)
+const ppl = peopleOut([
+    tx("1", "Sent to MCVAY OGUTU", "expense", "Send Money", "2026-11-02", 500),
+    tx("2", "Sent to MCVAY OGUTU", "expense", "Send Money", "2026-11-09", 300),
+    tx("3", "Sent to  mcvay  ogutu", "expense", "Send Money", "2026-10-09", 100),
+    tx("4", "Paid to NAIVAS", "expense", "Groceries", "2026-11-03", 900),
+    tx("5", "Received from JANE", "income", "Money Received", "2026-11-04", 5000),
+    tx("6", "Airtime purchase", "expense", "Airtime & Data", "2026-11-05", 50)
+], "2026-11");
+assert.deepEqual(ppl.map(p => [p.name, p.total, p.count]), [["NAIVAS", 900, 1], ["MCVAY OGUTU", 800, 2]]);
+assert.deepEqual(peopleOut([tx("3", "Sent to  mcvay  ogutu", "expense", "x", "2026-10-09", 100), tx("1", "Sent to MCVAY OGUTU", "expense", "x", "2026-11-02", 500)], null).map(p => p.total), [600]);
 
 // fees
 const f = [

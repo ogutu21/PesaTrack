@@ -162,8 +162,18 @@ final class MpesaParser {
         Item it = new Item();
         it.kind = kind; it.type = type; it.amount = amt; it.fee = fee; it.date = date; it.description = description; it.code = code;
         it.category = kind.equals("airtime") ? "Airtime & Data" : kind.equals("withdraw") ? "Other" : guessCategory(party, type);
+        if (it.category.equals("Other")) it.category = fallbackCategory(kind, type, party);
         it.id = code != null ? "mpesa-" + code : "mpesa-h" + hash(body);
         return it;
+    }
+
+    static String fallbackCategory(String kind, String type, String party) {
+        if (kind.equals("withdraw")) return "Withdrawals";
+        if (type.equals("income")) return "Money Received";
+        if (kind.equals("paybill") || Pattern.compile("\\bfor account\\b", CI).matcher(party == null ? "" : party).find()) return "Pay Bill";
+        if (kind.equals("paid")) return "Buy Goods";
+        if (kind.equals("sent")) return "Send Money";
+        return "Other";
     }
 
     private static Transfer parseTransfer(String code, String body) {
